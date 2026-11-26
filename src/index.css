@@ -1,0 +1,31 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --color-senna-yellow: #facc15;
+  --color-senna-green: #16a34a;
+  --color-senna-blue: #1d4ed8;
+  --color-mclaren-red: #ef4444;
+  --color-tech-black: #09090b;
+  --color-tech-gray: #27272a;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background-color: #09090b;
+  color: #f8fafc;
+  font-family: var(--font-sans);
+  user-select: none;
+}
+
+.font-telemetry {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
