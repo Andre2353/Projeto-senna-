@@ -22,11 +22,14 @@ export function OpponentCar({
   isPaused,
 }: OpponentCarProps) {
   const groupRef = useRef<THREE.Group>(null);
+  const tiltGroupRef = useRef<THREE.Group>(null);
   const labelGroupRef = useRef<THREE.Group>(null);
+  const rearLightRef = useRef<THREE.MeshStandardMaterial>(null);
   const frontLeftSteerRef = useRef<THREE.Group>(null);
   const frontRightSteerRef = useRef<THREE.Group>(null);
   const wheelSpinRefs = useRef<(THREE.Group | null)[]>([]);
-  const wheelAngleRef = useRef(0);
+  const frontWheelAngleRef = useRef(0);
+  const rearWheelAngleRef = useRef(0);
   const decisionTimerRef = useRef((index * 0.37) % 1.4);
   const overtakeSideRef = useRef<number>(index % 2 === 0 ? -1 : 1);
 
@@ -38,7 +41,7 @@ export function OpponentCar({
     };
   }, []);
 
-  useFrame((_, delta) => {
+  useFrame((state, delta) => {
     const opp = gameRuntime.opponents[index];
     const carGroup = groupRef.current;
     if (!opp || !carGroup) {
@@ -151,10 +154,29 @@ export function OpponentCar({
         if (frontLeftSteerRef.current) frontLeftSteerRef.current.rotation.y = steerVisual;
         if (frontRightSteerRef.current) frontRightSteerRef.current.rotation.y = steerVisual;
 
-        wheelAngleRef.current -= (speedMetersPerSec / 0.34) * dt;
-        for (let i = 0; i < wheelSpinRefs.current.length; i++) {
+        if (tiltGroupRef.current) {
+          const rollTarget = clamp((opp.targetLaneX - opp.laneOffsetX) * 0.014, -0.045, 0.045);
+          tiltGroupRef.current.rotation.z = THREE.MathUtils.lerp(
+            tiltGroupRef.current.rotation.z,
+            rollTarget,
+            dt * 8
+          );
+        }
+
+        if (rearLightRef.current) {
+          const isRain = gameRuntime.rainIntensity > 0.25;
+          rearLightRef.current.emissiveIntensity = isRain
+            ? Math.sin(state.clock.elapsedTime * 14 + index) > 0
+              ? 4.0
+              : 0.35
+            : 0.55;
+        }
+
+        frontWheelAngleRef.current -= (speedMetersPerSec / 0.31) * dt;
+        rearWheelAngleRef.current -= (speedMetersPerSec / 0.35) * dt;
+        for (let i = 0; i < 4; i++) {
           const wheel = wheelSpinRefs.current[i];
-          if (wheel) wheel.rotation.x = wheelAngleRef.current;
+          if (wheel) wheel.rotation.x = i < 2 ? frontWheelAngleRef.current : rearWheelAngleRef.current;
         }
       }
     }
@@ -173,13 +195,17 @@ export function OpponentCar({
 
   return (
     <group ref={groupRef} position={[spec.laneX, 0, spec.initialOffsetZ]}>
-      <FormulaChassis
-        livery={spec.livery}
-        isSennaHelmet={false}
-        frontLeftSteerRef={frontLeftSteerRef}
-        frontRightSteerRef={frontRightSteerRef}
-        wheelSpinRefs={wheelSpinRefs}
-      />
+      <group ref={tiltGroupRef}>
+        <FormulaChassis
+          livery={spec.livery}
+          helmetColor={spec.helmetColor}
+          isSennaHelmet={false}
+          rearLightRef={rearLightRef}
+          frontLeftSteerRef={frontLeftSteerRef}
+          frontRightSteerRef={frontRightSteerRef}
+          wheelSpinRefs={wheelSpinRefs}
+        />
+      </group>
 
       {/* Discrete floating surname tag visible only within 90 units */}
       <group ref={labelGroupRef} position={[0, 1.78, 0]}>
