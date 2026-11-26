@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react';
+import { Billboard } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { OPEN_WORLD_CHAPTERS } from '../../data/sennaData';
@@ -6,9 +7,63 @@ import { useGameStore } from '../../store/useGameStore';
 import type { ChapterMonument } from '../../types/game';
 import { engineAudio } from '../../utils/engineAudio';
 import { distance2D, normalizeAngle } from '../../utils/gameMath';
+import { getToonGradientMap } from '../../utils/performance';
 import { gameRuntime } from '../../utils/runtime';
 
 const MAX_SKID_SEGMENTS = 360;
+const KERB_COUNT = 120;
+const MOUNTAIN_COUNT = 24;
+const TREE_COUNT = 80;
+
+function createGrassTexture(): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  if (ctx) {
+    ctx.fillStyle = '#16a34a';
+    ctx.fillRect(0, 0, 256, 256);
+    ctx.fillStyle = '#15803d';
+    for (let y = 0; y < 256; y += 32) {
+      ctx.fillRect(0, y, 256, 16);
+    }
+    ctx.fillStyle = 'rgba(34, 197, 94, 0.25)';
+    for (let i = 0; i < 180; i++) {
+      const rx = (i * 53) % 256;
+      const ry = (i * 97) % 256;
+      ctx.fillRect(rx, ry, 4, 4);
+    }
+  }
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(40, 40);
+  tex.needsUpdate = true;
+  return tex;
+}
+
+function createAsphaltTexture(): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  if (ctx) {
+    ctx.fillStyle = '#27272a';
+    ctx.fillRect(0, 0, 256, 256);
+    for (let i = 0; i < 900; i++) {
+      const x = (i * 73) % 256;
+      const y = (i * 137) % 256;
+      ctx.fillStyle = i % 2 === 0 ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.12)';
+      ctx.fillRect(x, y, 2, 2);
+    }
+  }
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(24, 24);
+  tex.needsUpdate = true;
+  return tex;
+}
 
 function createChapterSignTexture(chapter: ChapterMonument, isUnlocked: boolean): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
@@ -32,7 +87,7 @@ function createChapterSignTexture(chapter: ChapterMonument, isUnlocked: boolean)
     ctx.font = 'bold 34px sans-serif';
     ctx.fillText(chapter.title.replace(/^CAPÍTULO \d+ — /, ''), 26, 114);
 
-    ctx.fillStyle = '#a1a1aa';
+    ctx.fillStyle = '#d4d4d8';
     ctx.font = '600 22px monospace';
     ctx.fillText(isUnlocked ? 'DESBLOQUEADO' : 'ATRAVESSE O MONUMENTO', 26, 158);
   }
@@ -52,6 +107,7 @@ function MonumentStructure({
   isUnlocked: boolean;
 }) {
   const beaconRef = useRef<THREE.MeshBasicMaterial>(null);
+  const gradientMap = useMemo(() => getToonGradientMap(), []);
   const signTexture = useMemo(
     () => createChapterSignTexture(chapter, isUnlocked),
     [chapter, isUnlocked]
@@ -66,10 +122,10 @@ function MonumentStructure({
   useFrame((state) => {
     if (beaconRef.current) {
       beaconRef.current.opacity = isTarget
-        ? 0.24 + Math.sin(state.clock.elapsedTime * 3) * 0.08
+        ? 0.28 + Math.sin(state.clock.elapsedTime * 3) * 0.08
         : isUnlocked
           ? 0.08
-          : 0.12;
+          : 0.14;
     }
   });
 
@@ -78,9 +134,9 @@ function MonumentStructure({
   return (
     <group position={[chapter.position.x, 0, chapter.position.z]}>
       {/* Base glow trigger ring on arena floor */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.03, 0]}>
-        <ringGeometry args={[12.8, 14.5, 48]} />
-        <meshBasicMaterial color={ringColor} transparent opacity={isTarget ? 0.9 : 0.45} />
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.05, 0]}>
+        <ringGeometry args={[12.8, 14.6, 48]} />
+        <meshBasicMaterial color={ringColor} transparent opacity={isTarget ? 0.92 : 0.55} />
       </mesh>
 
       {/* Vertical sky beacon */}
@@ -90,34 +146,34 @@ function MonumentStructure({
           ref={beaconRef}
           color={ringColor}
           transparent
-          opacity={0.2}
+          opacity={0.22}
           side={THREE.DoubleSide}
         />
       </mesh>
 
-      {/* Signboard */}
-      <mesh position={[0, 12.2, 0]}>
-        <planeGeometry args={[10.5, 3.9]} />
-        <meshBasicMaterial map={signTexture} side={THREE.DoubleSide} />
-      </mesh>
+      {/* Billboard Signboard: always faces the camera cleanly, never mirrored */}
+      <Billboard position={[0, 12.6, 0]} follow lockX={false} lockY={false} lockZ={false}>
+        <mesh>
+          <planeGeometry args={[11, 4.1]} />
+          <meshBasicMaterial map={signTexture} />
+        </mesh>
+      </Billboard>
 
       {/* Visual Theme per Chapter */}
       {chapter.visualType === 'kart' && (
         <group>
-          {/* Illuminated yellow kart track oval */}
-          <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.04, 0]}>
+          <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.06, 0]}>
             <ringGeometry args={[8.4, 9.2, 36]} />
             <meshBasicMaterial color="#facc15" />
           </mesh>
-          {/* Stylized miniature kart */}
-          <group position={[0, 0.45, 0]} scale={[1.6, 1.6, 1.6]}>
+          <group position={[0, 0.45, 0]} scale={[1.65, 1.65, 1.65]}>
             <mesh castShadow>
               <boxGeometry args={[1.1, 0.28, 1.9]} />
-              <meshStandardMaterial color="#facc15" roughness={0.3} />
+              <meshToonMaterial color="#facc15" gradientMap={gradientMap} />
             </mesh>
             <mesh position={[0, 0.35, 0.1]}>
               <boxGeometry args={[0.55, 0.35, 0.5]} />
-              <meshStandardMaterial color="#18181b" />
+              <meshToonMaterial color="#18181b" gradientMap={gradientMap} />
             </mesh>
           </group>
         </group>
@@ -125,17 +181,16 @@ function MonumentStructure({
 
       {chapter.visualType === 'toleman_lotus' && (
         <group>
-          {/* Twin Toleman & Lotus stylized monoliths */}
           <mesh position={[-5.5, 4.2, 0]} castShadow>
             <boxGeometry args={[1.4, 8.4, 1.4]} />
-            <meshStandardMaterial color="#1d4ed8" roughness={0.35} metalness={0.4} />
+            <meshToonMaterial color="#1d4ed8" gradientMap={gradientMap} />
           </mesh>
           <mesh position={[5.5, 4.2, 0]} castShadow>
             <boxGeometry args={[1.4, 8.4, 1.4]} />
-            <meshStandardMaterial color="#09090b" roughness={0.3} metalness={0.6} />
+            <meshToonMaterial color="#09090b" gradientMap={gradientMap} />
           </mesh>
           <mesh position={[0, 8.5, 0]}>
-            <boxGeometry args={[12.8, 0.55, 1.2]} />
+            <boxGeometry args={[12.8, 0.65, 1.2]} />
             <meshStandardMaterial color="#eab308" emissive="#eab308" emissiveIntensity={1.6} />
           </mesh>
         </group>
@@ -147,15 +202,18 @@ function MonumentStructure({
             <group key={idx} position={[0, 0, offsetZ]}>
               <mesh position={[-6.5, 4.5, 0]}>
                 <boxGeometry args={[0.9, 9, 0.9]} />
-                <meshStandardMaterial color="#f8fafc" roughness={0.3} />
+                <meshToonMaterial color="#f8fafc" gradientMap={gradientMap} />
               </mesh>
               <mesh position={[6.5, 4.5, 0]}>
                 <boxGeometry args={[0.9, 9, 0.9]} />
-                <meshStandardMaterial color="#ef4444" roughness={0.3} />
+                <meshToonMaterial color="#ef4444" gradientMap={gradientMap} />
               </mesh>
               <mesh position={[0, 9.2, 0]}>
                 <boxGeometry args={[14, 0.9, 0.9]} />
-                <meshStandardMaterial color={idx === 1 ? '#ef4444' : '#f8fafc'} roughness={0.3} />
+                <meshToonMaterial
+                  color={idx === 1 ? '#ef4444' : '#f8fafc'}
+                  gradientMap={gradientMap}
+                />
               </mesh>
             </group>
           ))}
@@ -164,18 +222,17 @@ function MonumentStructure({
 
       {chapter.visualType === 'monaco_water' && (
         <group>
-          {/* Reflective Monaco water sheet */}
-          <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}>
+          <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.04, 0]}>
             <circleGeometry args={[12.5, 40]} />
-            <meshStandardMaterial color="#0369a1" roughness={0.08} metalness={0.85} />
+            <meshStandardMaterial color="#0284c7" roughness={0.12} metalness={0.75} />
           </mesh>
           <mesh position={[-6.8, 4.4, 0]}>
             <boxGeometry args={[0.9, 8.8, 0.9]} />
-            <meshStandardMaterial color="#1d4ed8" />
+            <meshToonMaterial color="#1d4ed8" gradientMap={gradientMap} />
           </mesh>
           <mesh position={[6.8, 4.4, 0]}>
             <boxGeometry args={[0.9, 8.8, 0.9]} />
-            <meshStandardMaterial color="#facc15" />
+            <meshToonMaterial color="#facc15" gradientMap={gradientMap} />
           </mesh>
           <mesh position={[0, 8.8, 0]}>
             <boxGeometry args={[14.6, 0.8, 0.9]} />
@@ -194,10 +251,10 @@ function MonumentStructure({
             <mesh
               key={idx}
               rotation={[-Math.PI / 2, 0, ang * 0.35]}
-              position={[0, 0.04, 0]}
+              position={[0, 0.06, 0]}
             >
-              <planeGeometry args={[0.25, 22]} />
-              <meshBasicMaterial color="#fde047" transparent opacity={0.75} />
+              <planeGeometry args={[0.28, 22]} />
+              <meshBasicMaterial color="#fde047" transparent opacity={0.85} />
             </mesh>
           ))}
         </group>
@@ -205,40 +262,31 @@ function MonumentStructure({
 
       {chapter.visualType === 'eternal_helmet' && (
         <group>
-          {/* Grand pedestal */}
           <mesh position={[0, 1.2, 0]} castShadow>
             <cylinderGeometry args={[4.5, 5.6, 2.4, 32]} />
-            <meshStandardMaterial color="#18181b" roughness={0.35} metalness={0.65} />
+            <meshToonMaterial color="#27272a" gradientMap={gradientMap} />
           </mesh>
-          {/* Giant illuminated Senna helmet */}
           <group position={[0, 5.0, 0]}>
             <mesh castShadow>
               <sphereGeometry args={[2.5, 32, 24]} />
-              <meshStandardMaterial
-                color="#facc15"
-                emissive="#eab308"
-                emissiveIntensity={0.45}
-                roughness={0.2}
-                metalness={0.3}
-              />
+              <meshToonMaterial color="#facc15" gradientMap={gradientMap} />
             </mesh>
             <mesh position={[0, 0.15, 0]}>
               <cylinderGeometry args={[2.55, 2.55, 0.44, 32]} />
-              <meshStandardMaterial color="#16a34a" roughness={0.25} />
+              <meshToonMaterial color="#16a34a" gradientMap={gradientMap} />
             </mesh>
             <mesh position={[0, -0.42, 0]}>
               <cylinderGeometry args={[2.54, 2.54, 0.34, 32]} />
-              <meshStandardMaterial color="#1d4ed8" roughness={0.25} />
+              <meshToonMaterial color="#1d4ed8" gradientMap={gradientMap} />
             </mesh>
             <mesh position={[0, 0.25, 1.95]}>
               <boxGeometry args={[3.2, 0.95, 1.2]} />
               <meshStandardMaterial color="#09090b" roughness={0.1} metalness={0.9} />
             </mesh>
           </group>
-          {/* Infinite vanishing runway beyond Chapter 6 */}
-          <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, -260]}>
-            <planeGeometry args={[12, 480]} />
-            <meshBasicMaterial color="#facc15" transparent opacity={0.22} />
+          <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.04, -220]}>
+            <planeGeometry args={[12, 420]} />
+            <meshBasicMaterial color="#facc15" transparent opacity={0.3} />
           </mesh>
         </group>
       )}
@@ -252,21 +300,93 @@ export function OpenWorldArena() {
   const unlockChapter = useGameStore((state) => state.unlockChapter);
 
   const skidMeshRef = useRef<THREE.InstancedMesh>(null);
+  const kerbMeshRef = useRef<THREE.InstancedMesh>(null);
+  const mountainMeshRef = useRef<THREE.InstancedMesh>(null);
+  const treeTrunkRef = useRef<THREE.InstancedMesh>(null);
+  const treeCrownRef = useRef<THREE.InstancedMesh>(null);
   const skidCursorRef = useRef(0);
   const skidCooldownRef = useRef(0);
   const dummy = useMemo(() => new THREE.Object3D(), []);
 
+  const gradientMap = useMemo(() => getToonGradientMap(), []);
+  const grassTexture = useMemo(() => createGrassTexture(), []);
+  const asphaltTexture = useMemo(() => createAsphaltTexture(), []);
+
   useEffect(() => {
-    if (!skidMeshRef.current) {
-      return;
+    return () => {
+      grassTexture.dispose();
+      asphaltTexture.dispose();
+    };
+  }, [asphaltTexture, grassTexture]);
+
+  useEffect(() => {
+    if (skidMeshRef.current) {
+      dummy.position.set(0, -100, 0);
+      dummy.scale.set(0.001, 0.001, 0.001);
+      dummy.updateMatrix();
+      for (let i = 0; i < MAX_SKID_SEGMENTS; i++) {
+        skidMeshRef.current.setMatrixAt(i, dummy.matrix);
+      }
+      skidMeshRef.current.instanceMatrix.needsUpdate = true;
     }
-    dummy.position.set(0, -100, 0);
-    dummy.scale.set(0.001, 0.001, 0.001);
-    dummy.updateMatrix();
-    for (let i = 0; i < MAX_SKID_SEGMENTS; i++) {
-      skidMeshRef.current.setMatrixAt(i, dummy.matrix);
+
+    // Ring kerbs around main open-world oval loop (center 0, -1500)
+    if (kerbMeshRef.current) {
+      const color = new THREE.Color();
+      for (let i = 0; i < KERB_COUNT; i++) {
+        const angle = (i / KERB_COUNT) * Math.PI * 2;
+        const radius = i % 2 === 0 ? 185 : 158;
+        dummy.position.set(Math.cos(angle) * radius, 0.04, -1500 + Math.sin(angle) * 390);
+        dummy.rotation.set(0, -angle, 0);
+        dummy.scale.set(1, 1, 1);
+        dummy.updateMatrix();
+        kerbMeshRef.current.setMatrixAt(i, dummy.matrix);
+        color.set(i % 2 === 0 ? '#ef4444' : '#f8fafc');
+        kerbMeshRef.current.setColorAt(i, color);
+      }
+      kerbMeshRef.current.instanceMatrix.needsUpdate = true;
+      if (kerbMeshRef.current.instanceColor) kerbMeshRef.current.instanceColor.needsUpdate = true;
     }
-    skidMeshRef.current.instanceMatrix.needsUpdate = true;
+
+    // Low-poly mountains encircling the horizon
+    if (mountainMeshRef.current) {
+      for (let i = 0; i < MOUNTAIN_COUNT; i++) {
+        const angle = (i / MOUNTAIN_COUNT) * Math.PI * 2;
+        const dist = 510 + (i % 3) * 45;
+        const height = 65 + ((i * 19) % 70);
+        const radius = 65 + ((i * 13) % 40);
+        dummy.position.set(Math.cos(angle) * dist, height * 0.48, -1500 + Math.sin(angle) * (dist * 1.3));
+        dummy.rotation.set(0, angle, 0);
+        dummy.scale.set(radius, height, radius);
+        dummy.updateMatrix();
+        mountainMeshRef.current.setMatrixAt(i, dummy.matrix);
+      }
+      mountainMeshRef.current.instanceMatrix.needsUpdate = true;
+    }
+
+    // Stylized low-poly trees around outer autodrome perimeter
+    if (treeTrunkRef.current && treeCrownRef.current) {
+      for (let i = 0; i < TREE_COUNT; i++) {
+        const angle = (i / TREE_COUNT) * Math.PI * 2 + (i % 5) * 0.03;
+        const distX = 245 + (i % 7) * 28;
+        const distZ = 480 + (i % 6) * 45;
+        const tx = Math.cos(angle) * distX;
+        const tz = -1500 + Math.sin(angle) * distZ;
+        const scale = 0.85 + (i % 4) * 0.25;
+
+        dummy.position.set(tx, 1.8 * scale, tz);
+        dummy.rotation.set(0, 0, 0);
+        dummy.scale.set(scale, scale, scale);
+        dummy.updateMatrix();
+        treeTrunkRef.current.setMatrixAt(i, dummy.matrix);
+
+        dummy.position.set(tx, 5.4 * scale, tz);
+        dummy.updateMatrix();
+        treeCrownRef.current.setMatrixAt(i, dummy.matrix);
+      }
+      treeTrunkRef.current.instanceMatrix.needsUpdate = true;
+      treeCrownRef.current.instanceMatrix.needsUpdate = true;
+    }
   }, [dummy, mode]);
 
   const nextTargetChapter = useMemo(
@@ -284,7 +404,6 @@ export function OpenWorldArena() {
     const px = gameRuntime.position.x;
     const pz = gameRuntime.position.z;
 
-    // 1. Update Compass & Nearest Target Monument telemetry
     if (nextTargetChapter) {
       const dist = distance2D(px, pz, nextTargetChapter.position.x, nextTargetChapter.position.z);
       gameRuntime.nearestMonumentId = nextTargetChapter.id;
@@ -296,7 +415,6 @@ export function OpenWorldArena() {
       );
       gameRuntime.compassAngle = normalizeAngle(worldAngleToTarget + gameRuntime.heading);
 
-      // Unlock monument sequentially when driving through it
       if (dist < 14.5) {
         engineAudio.playChapterUnlock();
         unlockChapter(nextTargetChapter.id);
@@ -306,22 +424,25 @@ export function OpenWorldArena() {
       gameRuntime.nearestMonumentDistance = 0;
     }
 
-    // 2. Dynamic Tire Skidmarks during drift / handbrake (capped ring buffer)
-    if (skidMeshRef.current && (gameRuntime.drift > 0.25 || gameRuntime.handbrake) && Math.abs(gameRuntime.speed) > 30) {
+    if (
+      skidMeshRef.current &&
+      (gameRuntime.drift > 0.25 || gameRuntime.handbrake) &&
+      Math.abs(gameRuntime.speed) > 30
+    ) {
       skidCooldownRef.current -= dt;
       if (skidCooldownRef.current <= 0) {
         skidCooldownRef.current = 0.025;
         const cosH = Math.cos(gameRuntime.heading);
         const sinH = Math.sin(gameRuntime.heading);
 
-        for (const wheelSide of [-0.96, 0.96] as const) {
+        for (const wheelSide of [-0.98, 0.98] as const) {
           const idx = skidCursorRef.current % MAX_SKID_SEGMENTS;
           skidCursorRef.current += 1;
 
           const wx = px + wheelSide * cosH + sinH * 1.48;
           const wz = pz - wheelSide * sinH + cosH * 1.48;
 
-          dummy.position.set(wx, 0.025, wz);
+          dummy.position.set(wx, 0.045, wz);
           dummy.rotation.set(-Math.PI / 2, 0, gameRuntime.heading);
           dummy.scale.set(0.42, 1.35, 1);
           dummy.updateMatrix();
@@ -338,19 +459,56 @@ export function OpenWorldArena() {
 
   return (
     <group>
-      {/* Vast Panoramic Golden Arena Floor */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, -3900]} receiveShadow>
-        <planeGeometry args={[1200, 1700]} />
-        <meshStandardMaterial color="#141418" roughness={0.78} metalness={0.2} />
+      {/* Vibrant Green Autodrome Turf */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.04, -1550]} receiveShadow>
+        <planeGeometry args={[1400, 1700]} />
+        <meshToonMaterial map={grassTexture} gradientMap={gradientMap} />
       </mesh>
 
-      {/* Architectural Concentric Arena Rings */}
-      {[120, 260, 420].map((radius) => (
-        <mesh key={radius} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.01, -3850]}>
-          <ringGeometry args={[radius - 0.6, radius, 72]} />
-          <meshBasicMaterial color="#facc15" transparent opacity={0.18} />
-        </mesh>
-      ))}
+      {/* Entry Runway Asphalt connecting Z = -950 into the Arena */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, -1420]} receiveShadow>
+        <planeGeometry args={[28, 1020]} />
+        <meshStandardMaterial map={asphaltTexture} roughness={0.78} metalness={0.1} />
+      </mesh>
+
+      {/* Gravel Runoff Apron */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.015, -1500]} scale={[1, 2.2, 1]}>
+        <ringGeometry args={[142, 206, 64]} />
+        <meshToonMaterial color="#a8a29e" gradientMap={gradientMap} />
+      </mesh>
+
+      {/* Stylized Main Circuit Asphalt Loop */}
+      <mesh
+        rotation={[-Math.PI / 2, 0, 0]}
+        position={[0, 0.005, -1500]}
+        scale={[1, 2.2, 1]}
+        receiveShadow
+      >
+        <ringGeometry args={[154, 192, 64]} />
+        <meshStandardMaterial map={asphaltTexture} roughness={0.75} metalness={0.12} />
+      </mesh>
+
+      {/* Segmented Red/White Kerbs */}
+      <instancedMesh ref={kerbMeshRef} args={[undefined, undefined, KERB_COUNT]}>
+        <boxGeometry args={[2.2, 0.05, 8.5]} />
+        <meshToonMaterial gradientMap={gradientMap} />
+      </instancedMesh>
+
+      {/* Low-Poly Horizon Mountains */}
+      <instancedMesh ref={mountainMeshRef} args={[undefined, undefined, MOUNTAIN_COUNT]}>
+        <coneGeometry args={[1, 1, 6]} />
+        <meshToonMaterial color="#312e81" gradientMap={gradientMap} />
+      </instancedMesh>
+
+      {/* Low-Poly Stylized Trees */}
+      <instancedMesh ref={treeTrunkRef} args={[undefined, undefined, TREE_COUNT]}>
+        <cylinderGeometry args={[0.35, 0.5, 3.6, 6]} />
+        <meshToonMaterial color="#78350f" gradientMap={gradientMap} />
+      </instancedMesh>
+      <instancedMesh ref={treeCrownRef} args={[undefined, undefined, TREE_COUNT]}>
+        <coneGeometry args={[2.6, 6.2, 7]} />
+        <meshToonMaterial color="#15803d" gradientMap={gradientMap} />
+      </instancedMesh>
 
       {/* Capped Instanced Tire Skidmarks */}
       <instancedMesh

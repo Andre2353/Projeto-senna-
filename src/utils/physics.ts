@@ -52,7 +52,7 @@ function getCorridorLateralLimit(z: number): { minX: number; maxX: number } {
     const stage = STAGES[i];
     if (!stage) continue;
 
-    if (Math.abs(z - pz) < 38) {
+    if (Math.abs(z - pz) < 24) {
       if (stage.portalSide === 'left') {
         minX = -27;
       } else {
@@ -173,7 +173,7 @@ export function updateCarPhysics(
 
     // Keep within generous open-world arena bounds
     gameRuntime.position.x = clamp(gameRuntime.position.x, -420, 420);
-    gameRuntime.position.z = clamp(gameRuntime.position.z, -4600, -3190);
+    gameRuntime.position.z = clamp(gameRuntime.position.z, -2350, -880);
     gameRuntime.distance += Math.abs(speedMetersPerSec) * dt;
   } else {
     // Corridor and Race track forward-biased high-speed steering

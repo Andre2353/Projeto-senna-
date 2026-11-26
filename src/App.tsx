@@ -14,7 +14,7 @@ export function App() {
   useAudioEngine();
 
   return (
-    <main className="relative h-screen w-screen overflow-hidden bg-zinc-950 text-slate-50">
+    <main className="relative h-dvh w-screen overflow-hidden bg-zinc-950 text-slate-50">
       <GameCanvas />
       <LoadingScreen />
       <LandingScreen />

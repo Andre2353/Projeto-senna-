@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Compass, Pause, ArrowRight } from 'lucide-react';
+import { ArrowRight, Compass, Pause } from 'lucide-react';
 import { CORRIDOR_END_Z, OPEN_WORLD_CHAPTERS, STAGES } from '../../data/sennaData';
 import { useGameStore } from '../../store/useGameStore';
 import { gameRuntime } from '../../utils/runtime';
@@ -136,10 +136,9 @@ export function TelemetryHUD() {
         : 'MUNDO ABERTO — A TRAJETÓRIA';
 
   return (
-    <div className="pointer-events-none fixed inset-0 z-10 flex flex-col justify-between p-5">
+    <div className="pointer-events-none fixed inset-0 z-10 box-border p-5">
       {/* TOP BAR */}
-      <div className="flex items-start justify-between gap-4">
-        {/* Top Left: Context & Tactical Alert */}
+      <div className="absolute top-5 right-5 left-5 flex items-start justify-between gap-4">
         <div className="flex flex-col gap-2">
           <div className="border border-white/15 bg-zinc-950/75 px-4 py-2 backdrop-blur-md">
             <div className="flex items-center gap-2.5">
@@ -168,7 +167,6 @@ export function TelemetryHUD() {
           )}
         </div>
 
-        {/* Top Right: Progress, Shortcut to Story & Pause */}
         <div className="pointer-events-auto flex items-center gap-2.5">
           <div className="border border-white/15 bg-zinc-950/75 px-3.5 py-2 font-telemetry text-xs text-zinc-200 backdrop-blur-md">
             <span className="mr-2 text-zinc-500">DIST</span>
@@ -201,14 +199,14 @@ export function TelemetryHUD() {
       </div>
 
       {/* BOTTOM BAR */}
-      <div className="flex items-end justify-between gap-4">
+      <div className="absolute right-5 bottom-5 left-5 flex items-end justify-between gap-4">
         {/* Bottom Left: Speed, RPM Telemetry Bars & Highlighted Gear */}
-        <div className="flex items-end gap-3 border border-white/15 bg-zinc-950/75 px-4 py-3 backdrop-blur-md">
+        <div className="flex items-end gap-3 border border-white/15 bg-zinc-950/75 px-3.5 py-2.5 backdrop-blur-md">
           <div>
             <div className="flex items-baseline gap-1.5">
               <span
                 ref={speedRef}
-                className="font-telemetry text-4xl font-bold leading-none tracking-tight text-slate-50"
+                className="font-telemetry text-3xl font-bold leading-none tracking-tight text-slate-50"
               >
                 000
               </span>
@@ -217,20 +215,20 @@ export function TelemetryHUD() {
               </span>
             </div>
 
-            <div className="mt-2.5 flex items-center gap-1">
+            <div className="mt-2 flex items-center gap-1">
               {Array.from({ length: RPM_SEGMENTS }).map((_, index) => (
                 <span
                   key={index}
                   ref={(el) => {
                     rpmBarRefs.current[index] = el;
                   }}
-                  className="h-2.5 w-1.5 bg-zinc-800 transition-colors duration-75"
+                  className="h-2 w-1.5 bg-zinc-800 transition-colors duration-75"
                 />
               ))}
             </div>
 
             <div className="mt-1 flex items-center justify-between font-telemetry text-[10px] text-zinc-500">
-              <span>TELEMETRIA RPM</span>
+              <span>RPM</span>
               <span ref={rpmTextRef}>3200 RPM</span>
             </div>
           </div>
@@ -239,7 +237,7 @@ export function TelemetryHUD() {
             <p className="font-telemetry text-[10px] tracking-[0.2em] text-zinc-400">GEAR</p>
             <span
               ref={gearRef}
-              className="font-telemetry text-2xl font-bold leading-tight text-yellow-400"
+              className="font-telemetry text-xl font-bold leading-tight text-yellow-400"
             >
               01
             </span>
@@ -248,7 +246,7 @@ export function TelemetryHUD() {
 
         {/* Bottom Center: 7 Portals Strip OR 6 Chapters + Compass */}
         {mode === 'open_world' ? (
-          <div className="flex items-center gap-4 border border-white/15 bg-zinc-950/75 px-4 py-2.5 backdrop-blur-md">
+          <div className="flex items-center gap-4 border border-white/15 bg-zinc-950/75 px-4 py-2 backdrop-blur-md">
             <div className="flex items-center gap-2">
               <div
                 ref={compassArrowRef}
@@ -283,7 +281,7 @@ export function TelemetryHUD() {
             </div>
           </div>
         ) : (
-          <div className="flex items-center gap-2 border border-white/15 bg-zinc-950/75 px-4 py-2.5 backdrop-blur-md">
+          <div className="flex items-center gap-2 border border-white/15 bg-zinc-950/75 px-4 py-2 backdrop-blur-md">
             <span className="mr-1 font-telemetry text-[10px] tracking-[0.2em] text-zinc-400">
               PORTAIS
             </span>
@@ -310,12 +308,12 @@ export function TelemetryHUD() {
         )}
 
         {/* Bottom Right: Audio Controls + Key Guide */}
-        <div className="pointer-events-auto flex flex-col items-end gap-2">
+        <div className="pointer-events-auto flex flex-col items-end gap-1.5">
           <AudioControls />
           <div className="border border-white/15 bg-zinc-950/75 px-3 py-1 font-telemetry text-[10px] tracking-wider text-zinc-400 backdrop-blur-md">
             {mode === 'open_world'
-              ? 'WASD / SETAS PILOTAR · ESPAÇO DRIFT · M ÁUDIO · ESC PAUSA'
-              : 'WASD / SETAS PILOTAR · M ÁUDIO · ESC PAUSA'}
+              ? 'WASD / SETAS · ESPAÇO DRIFT · M ÁUDIO · ESC PAUSA'
+              : 'WASD / SETAS · M ÁUDIO · ESC PAUSA'}
           </div>
         </div>
       </div>

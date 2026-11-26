@@ -116,7 +116,7 @@ export function initializeStageRuntime(stage: StageConfig): void {
   }));
 }
 
-export function resetForOpenWorld(startZ = -3255): void {
+export function resetForOpenWorld(startZ = -965): void {
   gameRuntime.activeStageId = null;
   resetCarPose(startZ, 0, 0);
   gameRuntime.speed = 145;

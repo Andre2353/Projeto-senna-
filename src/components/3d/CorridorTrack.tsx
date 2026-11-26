@@ -20,8 +20,7 @@ function createAsphaltTextTexture(line1: string, line2: string): THREE.CanvasTex
   if (ctx) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Directional chevron
-    ctx.strokeStyle = 'rgba(250, 204, 21, 0.85)';
+    ctx.strokeStyle = 'rgba(250, 204, 21, 0.9)';
     ctx.lineWidth = 14;
     ctx.beginPath();
     ctx.moveTo(156, 150);
@@ -29,12 +28,12 @@ function createAsphaltTextTexture(line1: string, line2: string): THREE.CanvasTex
     ctx.lineTo(356, 150);
     ctx.stroke();
 
-    ctx.fillStyle = 'rgba(248, 250, 252, 0.82)';
+    ctx.fillStyle = 'rgba(248, 250, 252, 0.88)';
     ctx.font = 'bold 34px monospace';
     ctx.textAlign = 'center';
     ctx.fillText(line1, 256, 260);
 
-    ctx.fillStyle = 'rgba(250, 204, 21, 0.9)';
+    ctx.fillStyle = 'rgba(250, 204, 21, 0.95)';
     ctx.font = 'bold 30px monospace';
     ctx.fillText(line2, 256, 315);
   }
@@ -60,7 +59,7 @@ function createHorizonThresholdTexture(): THREE.CanvasTexture {
     ctx.fillStyle = '#facc15';
     ctx.font = 'bold 34px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('MODO MUNDO ABERTO // Z = -3250M', 512, 92);
+    ctx.fillText('MODO MUNDO ABERTO // Z = -950M', 512, 92);
 
     ctx.fillStyle = '#f8fafc';
     ctx.font = 'bold 58px sans-serif';
@@ -95,14 +94,13 @@ export function CorridorTrack() {
     };
   }, [asphaltSignTexture, thresholdTexture]);
 
-  // Populate instanced center dashed markings and lateral light pylons
   useEffect(() => {
     const dummy = new THREE.Object3D();
 
     if (dashMeshRef.current) {
-      const count = 130;
+      const count = 42;
       for (let i = 0; i < count; i++) {
-        dummy.position.set(0, 0.012, -i * 25 - 12);
+        dummy.position.set(0, 0.012, -i * 23 - 12);
         dummy.rotation.set(-Math.PI / 2, 0, 0);
         dummy.updateMatrix();
         dashMeshRef.current.setMatrixAt(i, dummy.matrix);
@@ -110,10 +108,10 @@ export function CorridorTrack() {
       dashMeshRef.current.instanceMatrix.needsUpdate = true;
     }
 
-    const pylonCount = 32;
+    const pylonCount = 12;
     if (pylonLeftRef.current && pylonRightRef.current) {
       for (let i = 0; i < pylonCount; i++) {
-        const z = -i * 100 - 50;
+        const z = -i * 80 - 40;
         dummy.position.set(-18.5, 4.5, z);
         dummy.rotation.set(0, 0, 0);
         dummy.updateMatrix();
@@ -143,7 +141,6 @@ export function CorridorTrack() {
     }
   });
 
-  // Build barrier segments leaving openings at portal bays
   const barrierSegments = useMemo(() => {
     const segments: Array<{ side: -1 | 1; zStart: number; zEnd: number }> = [];
     for (const side of [-1, 1] as const) {
@@ -153,8 +150,8 @@ export function CorridorTrack() {
 
       let cursor = 40;
       for (const pz of sidePortals) {
-        const openStart = pz + 34;
-        const openEnd = pz - 34;
+        const openStart = pz + 22;
+        const openEnd = pz - 22;
         if (cursor > openStart) {
           segments.push({ side, zStart: cursor, zEnd: openStart });
         }
@@ -171,20 +168,20 @@ export function CorridorTrack() {
     return null;
   }
 
-  const roadSignsZ = [-95, -580, -1030, -1480, -1930, -2380, -2830];
+  const roadSignsZ = [-42, -150, -270, -390, -510, -630, -750, -870];
 
   return (
     <group>
-      {/* Surrounding dark desert/tarmac apron */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.04, -1625]} receiveShadow>
-        <planeGeometry args={[900, 3600]} />
-        <meshStandardMaterial color="#09090b" roughness={0.95} metalness={0.05} />
+      {/* Surrounding dark tarmac/apron */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.04, -500]} receiveShadow>
+        <planeGeometry args={[900, 1200]} />
+        <meshStandardMaterial color="#141418" roughness={0.92} metalness={0.05} />
       </mesh>
 
       {/* Main Corridor Asphalt */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, -1625]} receiveShadow>
-        <planeGeometry args={[CORRIDOR_HALF_WIDTH * 2, 3400]} />
-        <meshStandardMaterial color="#18181b" roughness={0.62} metalness={0.22} />
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, -480]} receiveShadow>
+        <planeGeometry args={[CORRIDOR_HALF_WIDTH * 2, 1060]} />
+        <meshStandardMaterial color="#27272a" roughness={0.62} metalness={0.18} />
       </mesh>
 
       {/* White Track Edge Lines */}
@@ -192,30 +189,30 @@ export function CorridorTrack() {
         <mesh
           key={`line-${side}`}
           rotation={[-Math.PI / 2, 0, 0]}
-          position={[side * (CORRIDOR_HALF_WIDTH - 0.5), 0.01, -1625]}
+          position={[side * (CORRIDOR_HALF_WIDTH - 0.5), 0.01, -480]}
         >
-          <planeGeometry args={[0.35, 3400]} />
+          <planeGeometry args={[0.35, 1060]} />
           <meshStandardMaterial color="#f8fafc" roughness={0.45} />
         </mesh>
       ))}
 
       {/* Dashed Center Lane Markings (Instanced) */}
-      <instancedMesh ref={dashMeshRef} args={[undefined, undefined, 130]}>
-        <planeGeometry args={[0.28, 10]} />
-        <meshBasicMaterial color="#facc15" transparent opacity={0.45} />
+      <instancedMesh ref={dashMeshRef} args={[undefined, undefined, 42]}>
+        <planeGeometry args={[0.28, 9]} />
+        <meshBasicMaterial color="#facc15" transparent opacity={0.55} />
       </instancedMesh>
 
       {/* Trackside Light Pylons (Instanced) */}
-      <instancedMesh ref={pylonLeftRef} args={[undefined, undefined, 32]}>
+      <instancedMesh ref={pylonLeftRef} args={[undefined, undefined, 12]}>
         <boxGeometry args={[0.45, 9, 0.45]} />
-        <meshStandardMaterial color="#27272a" roughness={0.5} metalness={0.6} />
+        <meshStandardMaterial color="#3f3f46" roughness={0.5} metalness={0.6} />
       </instancedMesh>
-      <instancedMesh ref={pylonRightRef} args={[undefined, undefined, 32]}>
+      <instancedMesh ref={pylonRightRef} args={[undefined, undefined, 12]}>
         <boxGeometry args={[0.45, 9, 0.45]} />
-        <meshStandardMaterial color="#27272a" roughness={0.5} metalness={0.6} />
+        <meshStandardMaterial color="#3f3f46" roughness={0.5} metalness={0.6} />
       </instancedMesh>
 
-      {/* Guard-rails with clean openings at portal bays */}
+      {/* Guard-rails with openings at portal bays */}
       {barrierSegments.map((seg, idx) => {
         const length = Math.abs(seg.zStart - seg.zEnd);
         const centerZ = (seg.zStart + seg.zEnd) / 2;
@@ -227,7 +224,7 @@ export function CorridorTrack() {
             receiveShadow
           >
             <boxGeometry args={[0.45, 1.1, length]} />
-            <meshStandardMaterial color="#3f3f46" roughness={0.4} metalness={0.65} />
+            <meshStandardMaterial color="#52525b" roughness={0.4} metalness={0.65} />
           </mesh>
         );
       })}
@@ -239,7 +236,7 @@ export function CorridorTrack() {
           rotation={[-Math.PI / 2, 0, 0]}
           position={[0, 0.015, zPos]}
         >
-          <planeGeometry args={[10.5, 10.5]} />
+          <planeGeometry args={[10, 10]} />
           <meshBasicMaterial map={asphaltSignTexture} transparent />
         </mesh>
       ))}
@@ -257,7 +254,7 @@ export function CorridorTrack() {
         );
       })}
 
-      {/* Grand Horizon Arch at Z = -3250 leading into Open World */}
+      {/* Grand Horizon Arch at Z = -950 leading into Open World */}
       <group position={[0, 0, CORRIDOR_END_Z]}>
         <mesh position={[-15.5, 6, 0]}>
           <boxGeometry args={[1.4, 12, 1.8]} />

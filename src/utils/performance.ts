@@ -1,3 +1,4 @@
+import * as THREE from 'three';
 import type { GraphicsQuality } from '../types/game';
 
 export interface QualityProfile {
@@ -39,6 +40,25 @@ export function getQualityProfile(quality: GraphicsQuality): QualityProfile {
         shadowMapSize: 512,
       };
   }
+}
+
+let cachedToonGradient: THREE.DataTexture | null = null;
+
+/**
+ * Shared 4-band cel-shading gradient map for MeshToonMaterial.
+ */
+export function getToonGradientMap(): THREE.DataTexture {
+  if (cachedToonGradient) {
+    return cachedToonGradient;
+  }
+  const colors = new Uint8Array([95, 155, 215, 255]);
+  const texture = new THREE.DataTexture(colors, 4, 1, THREE.RedFormat);
+  texture.minFilter = THREE.NearestFilter;
+  texture.magFilter = THREE.NearestFilter;
+  texture.generateMipmaps = false;
+  texture.needsUpdate = true;
+  cachedToonGradient = texture;
+  return texture;
 }
 
 let cachedWebGLSupport: boolean | null = null;

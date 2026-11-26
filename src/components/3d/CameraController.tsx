@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useGameStore } from '../../store/useGameStore';
+import { clamp } from '../../utils/gameMath';
 import { gameRuntime } from '../../utils/runtime';
 
 const desiredCameraPos = new THREE.Vector3();
@@ -14,6 +15,7 @@ export function CameraController() {
   const cameraDistance = useGameStore((state) => state.settings.cameraDistance);
   const reducedMotion = useGameStore((state) => state.settings.reducedMotion);
   const lateralLagRef = useRef(0);
+  const rollAngleRef = useRef(0);
 
   useFrame((state, delta) => {
     const dt = Math.min(delta, 0.05);
@@ -33,8 +35,9 @@ export function CameraController() {
       camera.position.lerp(desiredCameraPos, dt * 4);
       currentLookAt.lerp(desiredLookAt, dt * 5);
       camera.lookAt(currentLookAt);
+      rollAngleRef.current = THREE.MathUtils.lerp(rollAngleRef.current, 0, dt * 8);
+      camera.rotateZ(rollAngleRef.current);
       persp.fov = THREE.MathUtils.lerp(persp.fov, 50, dt * 3);
-      persp.rotation.z = THREE.MathUtils.lerp(persp.rotation.z, 0, dt * 5);
       persp.updateProjectionMatrix();
       return;
     }
@@ -42,7 +45,7 @@ export function CameraController() {
     // Smooth camera transition after clicking "LIGAR MOTOR / INICIAR"
     gameRuntime.cameraIntroProgress = Math.min(1, gameRuntime.cameraIntroProgress + dt * 1.35);
 
-    const speedRatio = Math.min(1, Math.max(0, gameRuntime.speed / 330));
+    const speedRatio = clamp(Math.abs(gameRuntime.speed) / 330, 0, 1);
     const distScale = cameraDistance;
     const isOpenWorld = mode === 'open_world';
 
@@ -59,11 +62,11 @@ export function CameraController() {
 
     const backDistance = Math.max(4.4, baseBack - stumbleZoom);
 
-    // Subtle cinematic lateral lag on quick lane changes
+    // Subtle cinematic lateral lag scaled by speed so slow driving stays centered
     lateralLagRef.current = THREE.MathUtils.lerp(
       lateralLagRef.current,
-      gameRuntime.steering * 0.65,
-      dt * 3.5
+      gameRuntime.steering * 0.55 * speedRatio,
+      dt * 4
     );
 
     const sinH = Math.sin(heading);
@@ -95,11 +98,16 @@ export function CameraController() {
     persp.fov = THREE.MathUtils.lerp(persp.fov, targetFov, dt * 5);
     persp.updateProjectionMatrix();
 
-    // Subtle roll tilt into corners
-    if (!reducedMotion) {
-      const targetRoll = -gameRuntime.steering * 0.038 * (0.3 + speedRatio * 0.7);
-      persp.rotation.z = THREE.MathUtils.lerp(persp.rotation.z, targetRoll, dt * 6);
+    // Camera roll strictly capped at 0.04 rad, proportional to speed, always lerping back to 0
+    const rawTargetRoll = reducedMotion
+      ? 0
+      : clamp(-gameRuntime.steering * 0.04 * speedRatio, -0.04, 0.04);
+    const targetRoll = Math.abs(gameRuntime.speed) < 12 ? 0 : rawTargetRoll;
+    rollAngleRef.current = THREE.MathUtils.lerp(rollAngleRef.current, targetRoll, dt * 8);
+    if (Math.abs(rollAngleRef.current) < 0.0004 && targetRoll === 0) {
+      rollAngleRef.current = 0;
     }
+    camera.rotateZ(rollAngleRef.current);
   });
 
   return null;

@@ -1,9 +1,9 @@
 import type { CarLivery, ChapterMonument, GameSettings, StageConfig } from '../types/game';
 
 export const CORRIDOR_START_Z = 0;
-export const CORRIDOR_END_Z = -3250;
+export const CORRIDOR_END_Z = -950;
 export const CORRIDOR_HALF_WIDTH = 14;
-export const PORTAL_Z_POSITIONS = [-350, -800, -1250, -1700, -2150, -2600, -3050] as const;
+export const PORTAL_Z_POSITIONS = [-90, -210, -330, -450, -570, -690, -810] as const;
 
 export const STORAGE_KEY = 'senna_portais_legado_state';
 export const STORAGE_VERSION = 1;
@@ -99,7 +99,7 @@ export const STAGES: readonly StageConfig[] = [
     id: 1,
     slug: 'monaco-1984',
     portalSide: 'left',
-    portalZ: -350,
+    portalZ: -90,
     circuit: 'MÔNACO',
     year: 1984,
     raceDistance: 2400,
@@ -143,7 +143,7 @@ export const STAGES: readonly StageConfig[] = [
     id: 2,
     slug: 'estoril-1985',
     portalSide: 'right',
-    portalZ: -800,
+    portalZ: -210,
     circuit: 'ESTORIL',
     year: 1985,
     raceDistance: 2600,
@@ -187,7 +187,7 @@ export const STAGES: readonly StageConfig[] = [
     id: 3,
     slug: 'suzuka-1988',
     portalSide: 'left',
-    portalZ: -1250,
+    portalZ: -330,
     circuit: 'SUZUKA',
     year: 1988,
     raceDistance: 2800,
@@ -260,7 +260,7 @@ export const STAGES: readonly StageConfig[] = [
     id: 4,
     slug: 'phoenix-1990',
     portalSide: 'right',
-    portalZ: -1700,
+    portalZ: -450,
     circuit: 'PHOENIX',
     year: 1990,
     raceDistance: 2700,
@@ -304,7 +304,7 @@ export const STAGES: readonly StageConfig[] = [
     id: 5,
     slug: 'interlagos-1991',
     portalSide: 'left',
-    portalZ: -2150,
+    portalZ: -570,
     circuit: 'INTERLAGOS',
     year: 1991,
     raceDistance: 2900,
@@ -348,7 +348,7 @@ export const STAGES: readonly StageConfig[] = [
     id: 6,
     slug: 'monaco-1992',
     portalSide: 'right',
-    portalZ: -2600,
+    portalZ: -690,
     circuit: 'MÔNACO',
     year: 1992,
     raceDistance: 2750,
@@ -392,7 +392,7 @@ export const STAGES: readonly StageConfig[] = [
     id: 7,
     slug: 'donington-1993',
     portalSide: 'left',
-    portalZ: -3050,
+    portalZ: -810,
     circuit: 'DONINGTON PARK',
     year: 1993,
     raceDistance: 3200,
@@ -471,7 +471,7 @@ export const OPEN_WORLD_CHAPTERS: readonly ChapterMonument[] = [
     title: 'CAPÍTULO 1 — RAÍZES NO KART',
     period: '1973–1981',
     text: 'Antes dos grandes circuitos, existia uma criança que encontrou no kart a sua primeira linguagem. A obsessão pela precisão começou muito antes da Fórmula 1.',
-    position: { x: -110, z: -3430 },
+    position: { x: -95, z: -1120 },
     accentColor: '#FACC15',
     visualType: 'kart',
   },
@@ -480,7 +480,7 @@ export const OPEN_WORLD_CHAPTERS: readonly ChapterMonument[] = [
     title: 'CAPÍTULO 2 — A CHEGADA À ELITE',
     period: '1984–1987',
     text: 'Toleman, Lotus e uma capacidade extraordinária de transformar velocidade em desempenho. A classificação se tornou um dos grandes palcos de sua precisão.',
-    position: { x: 135, z: -3570 },
+    position: { x: 115, z: -1255 },
     accentColor: '#EAB308',
     visualType: 'toleman_lotus',
   },
@@ -489,7 +489,7 @@ export const OPEN_WORLD_CHAPTERS: readonly ChapterMonument[] = [
     title: 'CAPÍTULO 3 — O TRICAMPEONATO MUNDIAL',
     period: '1988, 1990 e 1991',
     text: 'Com a McLaren-Honda, Ayrton construiu uma das fases mais marcantes da história da Fórmula 1. Três campeonatos mundiais consolidaram sua posição entre os grandes.',
-    position: { x: -165, z: -3730 },
+    position: { x: -135, z: -1405 },
     accentColor: '#EF4444',
     visualType: 'mclaren_arches',
   },
@@ -498,7 +498,7 @@ export const OPEN_WORLD_CHAPTERS: readonly ChapterMonument[] = [
     title: 'CAPÍTULO 4 — O REI DA CHUVA E DE MÔNACO',
     period: 'MÔNACO & CHUVA',
     text: 'Seis vitórias em Mônaco. Uma relação extraordinária com o circuito mais exigente da Fórmula 1. Sob chuva, Senna transformava dificuldade em oportunidade.',
-    position: { x: 150, z: -3890 },
+    position: { x: 125, z: -1555 },
     accentColor: '#1D4ED8',
     visualType: 'monaco_water',
   },
@@ -507,7 +507,7 @@ export const OPEN_WORLD_CHAPTERS: readonly ChapterMonument[] = [
     title: 'CAPÍTULO 5 — INSTITUTO AYRTON SENNA',
     period: 'EDUCAÇÃO & FUTURO',
     text: 'O desejo de transformação não terminou nas corridas. O Instituto Ayrton Senna representa a continuidade de um sonho: ampliar oportunidades e transformar a vida de crianças e jovens por meio da educação.',
-    position: { x: -95, z: -4060 },
+    position: { x: -85, z: -1715 },
     accentColor: '#FACC15',
     visualType: 'instituto_sun',
   },
@@ -516,7 +516,7 @@ export const OPEN_WORLD_CHAPTERS: readonly ChapterMonument[] = [
     title: 'CAPÍTULO 6 — LEGADO ETERNO',
     period: 'ETERNO',
     text: 'Seja você quem for, qualquer posição que tenha na vida, tenha sempre como meta muita força, muita determinação.',
-    position: { x: 0, z: -4250 },
+    position: { x: 0, z: -1895 },
     accentColor: '#16A34A',
     visualType: 'eternal_helmet',
   },

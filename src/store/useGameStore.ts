@@ -234,7 +234,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   returnToCorridor: (afterStageId) => {
     const refStageId = afterStageId ?? get().activeStageId;
     const stage = STAGES.find((item) => item.id === refStageId);
-    const resumeZ = stage ? stage.portalZ - 55 : gameRuntime.position.z;
+    const resumeZ = stage ? stage.portalZ - 26 : 0;
     resetForCorridor(resumeZ, false);
     gameRuntime.speed = 92;
     gameRuntime.gear = 2;
@@ -255,7 +255,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   },
 
   enterOpenWorld: () => {
-    resetForOpenWorld(-3260);
+    resetForOpenWorld(-965);
     set({
       mode: 'open_world',
       activeStageId: null,
