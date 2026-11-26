@@ -23,6 +23,11 @@ export interface TireTreadTextureSet {
   bumpMap: THREE.CanvasTexture;
 }
 
+export interface ConcreteTextureSet {
+  map: THREE.CanvasTexture;
+  roughnessMap: THREE.CanvasTexture;
+}
+
 function configureRepeatingTexture(
   canvas: HTMLCanvasElement,
   repeatX: number,
@@ -477,4 +482,79 @@ export function createRetroSponsorTexture(variant: number): THREE.CanvasTexture 
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.needsUpdate = true;
   return tex;
+}
+
+export function createConcreteFloorTextureSet(
+  repeatX = 12,
+  repeatY = 12
+): ConcreteTextureSet {
+  const size = 512;
+
+  const colorCanvas = document.createElement('canvas');
+  colorCanvas.width = size;
+  colorCanvas.height = size;
+  const cCtx = colorCanvas.getContext('2d');
+
+  const roughCanvas = document.createElement('canvas');
+  roughCanvas.width = size;
+  roughCanvas.height = size;
+  const rCtx = roughCanvas.getContext('2d');
+
+  if (cCtx && rCtx) {
+    cCtx.fillStyle = '#141820';
+    cCtx.fillRect(0, 0, size, size);
+
+    rCtx.fillStyle = '#a8a8a8';
+    rCtx.fillRect(0, 0, size, size);
+
+    for (let p = 0; p < 34; p++) {
+      const px = (p * 173 + 29) % size;
+      const py = (p * 263 + 53) % size;
+      const rad = 36 + (p % 5) * 20;
+
+      const cGrad = cCtx.createRadialGradient(px, py, 4, px, py, rad);
+      cGrad.addColorStop(0, p % 2 === 0 ? 'rgba(30, 36, 46, 0.24)' : 'rgba(8, 10, 14, 0.26)');
+      cGrad.addColorStop(1, 'rgba(20, 24, 32, 0)');
+      cCtx.fillStyle = cGrad;
+      cCtx.beginPath();
+      cCtx.arc(px, py, rad, 0, Math.PI * 2);
+      cCtx.fill();
+
+      const rGrad = rCtx.createRadialGradient(px, py, 4, px, py, rad);
+      rGrad.addColorStop(0, p % 2 === 0 ? 'rgba(130, 130, 130, 0.4)' : 'rgba(205, 205, 205, 0.4)');
+      rGrad.addColorStop(1, 'rgba(168, 168, 168, 0)');
+      rCtx.fillStyle = rGrad;
+      rCtx.beginPath();
+      rCtx.arc(px, py, rad, 0, Math.PI * 2);
+      rCtx.fill();
+    }
+
+    for (let i = 0; i < 5200; i++) {
+      const x = (i * 197 + (i % 17) * 23) % size;
+      const y = (i * 293 + (i % 13) * 19) % size;
+      const w = i % 7 === 0 ? 2 : 1;
+      cCtx.fillStyle =
+        i % 3 === 0 ? 'rgba(255, 255, 255, 0.028)' : 'rgba(0, 0, 0, 0.08)';
+      cCtx.fillRect(x, y, w, w);
+
+      rCtx.fillStyle =
+        i % 2 === 0 ? 'rgba(142, 142, 142, 0.35)' : 'rgba(196, 196, 196, 0.35)';
+      rCtx.fillRect(x, y, w, w);
+    }
+
+    cCtx.strokeStyle = 'rgba(6, 8, 12, 0.42)';
+    cCtx.lineWidth = 1.5;
+    cCtx.strokeRect(0.75, 0.75, size - 1.5, size - 1.5);
+    cCtx.beginPath();
+    cCtx.moveTo(size / 2, 0);
+    cCtx.lineTo(size / 2, size);
+    cCtx.moveTo(0, size / 2);
+    cCtx.lineTo(size, size / 2);
+    cCtx.stroke();
+  }
+
+  return {
+    map: configureRepeatingTexture(colorCanvas, repeatX, repeatY, true),
+    roughnessMap: configureRepeatingTexture(roughCanvas, repeatX, repeatY, false),
+  };
 }

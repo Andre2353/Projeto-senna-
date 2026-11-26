@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Flag, Layers, Minimize2, RotateCw } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Crosshair, Flag, Minimize2, RotateCw } from 'lucide-react';
 import { TIMELINE_CARS } from '../../data/sennaData';
 import { useGameStore } from '../../store/useGameStore';
 import type { ExplodedPart, ShowroomAngleZone } from '../../types/game';
@@ -32,10 +32,10 @@ const ZONE_META: Record<
 };
 
 const PART_BUTTONS: Array<{ id: ExplodedPart; label: string }> = [
-  { id: 'engine', label: 'MOTOR & CÂMBIO' },
+  { id: 'aero', label: 'AERO & BICO' },
   { id: 'wheels', label: 'PNEUS & FREIOS' },
-  { id: 'aero', label: 'SIDEPODS & AERO' },
   { id: 'cockpit', label: 'COCKPIT' },
+  { id: 'engine', label: 'MOTOR & CÂMBIO' },
 ];
 
 function unlockAudioContext(): void {
@@ -59,17 +59,14 @@ export function TimelineSection() {
   const mode = useGameStore((state) => state.mode);
   const selectedIndex = useGameStore((state) => state.selectedTimelineIndex);
   const showroomZone = useGameStore((state) => state.showroomZone);
-  const explodedParts = useGameStore((state) => state.explodedParts);
   const activeInspectedPart = useGameStore((state) => state.activeInspectedPart);
   const setSelectedTimelineIndex = useGameStore((state) => state.setSelectedTimelineIndex);
-  const toggleExplodedPart = useGameStore((state) => state.toggleExplodedPart);
-  const openAllExploded = useGameStore((state) => state.openAllExploded);
-  const closeAllExploded = useGameStore((state) => state.closeAllExploded);
+  const toggleInspectedPart = useGameStore((state) => state.toggleInspectedPart);
+  const clearInspection = useGameStore((state) => state.clearInspection);
   const enterStage = useGameStore((state) => state.enterStage);
 
   const selectedCar = TIMELINE_CARS[selectedIndex] ?? TIMELINE_CARS[0]!;
   const zoneInfo = ZONE_META[showroomZone];
-  const anyExploded = Object.values(explodedParts).some(Boolean);
 
   useEffect(() => {
     if (mode !== 'landing') {
@@ -131,7 +128,7 @@ export function TimelineSection() {
         </div>
       </aside>
 
-      {/* RIGHT TECHNICAL PANEL: Full Engineering Sheet when Exploded OR Dynamic 360° Angle Card */}
+      {/* RIGHT TECHNICAL PANEL: Full Engineering Sheet on Dot Click OR Dynamic 360° Angle Card */}
       <aside className="pointer-events-auto fixed top-28 right-6 z-20 w-full max-w-xs border border-white/15 bg-zinc-950/82 p-5 backdrop-blur-md">
         {activeInspectedPart !== null ? (
           <>
@@ -139,8 +136,8 @@ export function TimelineSection() {
               <span className="font-telemetry text-[10px] font-semibold tracking-[0.2em] text-yellow-400">
                 FICHA TÉCNICA // {selectedCar.chassis.toUpperCase()}
               </span>
-              <span className="border border-green-600/70 bg-green-600/20 px-1.5 py-0.5 font-telemetry text-[9px] text-green-400">
-                ABERTO
+              <span className="border border-yellow-400/60 bg-yellow-400/15 px-1.5 py-0.5 font-telemetry text-[9px] text-yellow-300">
+                TELEMETRIA
               </span>
             </div>
 
@@ -210,51 +207,45 @@ export function TimelineSection() {
         )}
 
         <div className="mt-4 flex items-center gap-1.5 border-t border-white/10 pt-3 font-telemetry text-[10px] tracking-wider text-zinc-400">
-          <span>CLIQUE NAS PEÇAS DO CARRO OU ARRASTE 360°</span>
+          <span>CLIQUE NOS PONTOS DE TELEMETRIA OU ARRASTE 360°</span>
         </div>
       </aside>
 
-      {/* EXPLODED VIEW CONTROLS BAR (ABOVE TIMELINE) */}
-      <div className="pointer-events-auto fixed bottom-22 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2 border border-white/15 bg-zinc-950/85 px-3 py-1.5 backdrop-blur-md">
-        <button
-          type="button"
-          onClick={openAllExploded}
-          className="inline-flex cursor-pointer items-center gap-1.5 border border-yellow-400 bg-yellow-400 px-3 py-1.5 font-telemetry text-[10px] font-bold tracking-[0.16em] text-zinc-950 transition hover:bg-yellow-300"
-        >
-          <Layers className="h-3.5 w-3.5" />
-          <span>VISÃO TÉCNICA COMPLETA</span>
-        </button>
+      {/* CAMERA INSPECTION HOTSPOT BAR (ABOVE TIMELINE) */}
+      <div className="pointer-events-auto fixed bottom-22 left-1/2 z-20 flex -translate-x-1/2 items-center gap-1.5 border border-white/15 bg-zinc-950/85 px-3 py-1.5 backdrop-blur-md">
+        <span className="mr-1 hidden items-center gap-1 font-telemetry text-[9px] tracking-widest text-zinc-400 sm:inline-flex">
+          <Crosshair className="h-3 w-3 text-yellow-400" />
+          <span>TELEMETRIA</span>
+        </span>
 
-        {anyExploded && (
+        {PART_BUTTONS.map((btn) => {
+          const isOpen = activeInspectedPart === btn.id;
+          return (
+            <button
+              key={btn.id}
+              type="button"
+              onClick={() => toggleInspectedPart(btn.id)}
+              className={`cursor-pointer border px-2.5 py-1.5 font-telemetry text-[10px] tracking-wider transition ${
+                isOpen
+                  ? 'border-yellow-400 bg-yellow-400/20 text-yellow-300'
+                  : 'border-white/15 text-zinc-300 hover:border-yellow-400 hover:text-yellow-400'
+              }`}
+            >
+              {btn.label}
+            </button>
+          );
+        })}
+
+        {activeInspectedPart !== null && (
           <button
             type="button"
-            onClick={closeAllExploded}
-            className="inline-flex cursor-pointer items-center gap-1.5 border border-white/25 bg-zinc-900 px-3 py-1.5 font-telemetry text-[10px] font-semibold tracking-[0.14em] text-slate-50 transition hover:border-red-500 hover:text-red-400"
+            onClick={clearInspection}
+            className="inline-flex cursor-pointer items-center gap-1 border border-white/25 bg-zinc-900 px-2.5 py-1.5 font-telemetry text-[10px] font-semibold tracking-[0.14em] text-slate-50 transition hover:border-yellow-400 hover:text-yellow-400"
           >
-            <Minimize2 className="h-3.5 w-3.5" />
-            <span>FECHAR CARENAGEM</span>
+            <Minimize2 className="h-3 w-3" />
+            <span>VISÃO GERAL</span>
           </button>
         )}
-
-        <div className="hidden items-center gap-1 border-l border-white/15 pl-2 xl:flex">
-          {PART_BUTTONS.map((btn) => {
-            const isOpen = explodedParts[btn.id];
-            return (
-              <button
-                key={btn.id}
-                type="button"
-                onClick={() => toggleExplodedPart(btn.id)}
-                className={`cursor-pointer border px-2.5 py-1.5 font-telemetry text-[10px] tracking-wider transition ${
-                  isOpen
-                    ? 'border-green-600 bg-green-600/20 text-green-400'
-                    : 'border-white/15 text-zinc-300 hover:border-yellow-400 hover:text-yellow-400'
-                }`}
-              >
-                {btn.label}
-              </button>
-            );
-          })}
-        </div>
       </div>
 
       {/* BOTTOM INTERACTIVE TIMELINE NAVIGATION BAR */}

@@ -1,7 +1,8 @@
-import { Component, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Component, Suspense, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import {
   ContactShadows,
   Environment as DreiEnvironment,
+  Html,
   Lightformer,
   MeshReflectorMaterial,
   OrbitControls,
@@ -11,17 +12,54 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { Bloom, EffectComposer, Vignette } from '@react-three/postprocessing';
 import * as THREE from 'three';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
-import { TIMELINE_CARS } from '../../data/sennaData';
 import { useGameStore } from '../../store/useGameStore';
-import type { ShowroomAngleZone } from '../../types/game';
-import { ShowroomCar } from './ShowroomCar';
+import type { ExplodedPart, ShowroomAngleZone } from '../../types/game';
+import { createConcreteFloorTextureSet } from '../../utils/proceduralTextures';
 
-const SHOWROOM_GLB_PATH = '/models/senna-showroom.glb';
+const SHOWROOM_GLB_PATH = '/models/mclaren-showroom.glb';
+const DEFAULT_CAMERA_POS = new THREE.Vector3(-4.6, 1.08, -6.2);
+const DEFAULT_CAMERA_TARGET = new THREE.Vector3(0, 0.36, 0);
 
-class GlbErrorBoundary extends Component<
-  { fallback: ReactNode; children: ReactNode },
-  { hasError: boolean }
-> {
+interface TelemetryPointSpec {
+  id: ExplodedPart;
+  label: string;
+  position: [number, number, number];
+  focusTarget: THREE.Vector3;
+  focusCamera: THREE.Vector3;
+}
+
+const TELEMETRY_POINTS: readonly TelemetryPointSpec[] = [
+  {
+    id: 'aero',
+    label: 'Aerodinâmica & Bico',
+    position: [0, 0.28, -1.98],
+    focusTarget: new THREE.Vector3(0, 0.25, -1.75),
+    focusCamera: new THREE.Vector3(-2.1, 0.72, -3.95),
+  },
+  {
+    id: 'wheels',
+    label: 'Pneus & Freios',
+    position: [-0.82, 0.34, -1.25],
+    focusTarget: new THREE.Vector3(-0.75, 0.32, -1.25),
+    focusCamera: new THREE.Vector3(-2.85, 0.68, -2.55),
+  },
+  {
+    id: 'cockpit',
+    label: 'Cockpit & Chassi',
+    position: [0, 0.68, -0.22],
+    focusTarget: new THREE.Vector3(0, 0.56, -0.2),
+    focusCamera: new THREE.Vector3(-1.85, 1.48, -1.75),
+  },
+  {
+    id: 'engine',
+    label: 'Motor & Câmbio',
+    position: [0, 0.64, 0.92],
+    focusTarget: new THREE.Vector3(0, 0.48, 0.95),
+    focusCamera: new THREE.Vector3(2.45, 0.96, 2.75),
+  },
+];
+
+class GlbErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
   public state = { hasError: false };
 
   public static getDerivedStateFromError(): { hasError: boolean } {
@@ -30,40 +68,76 @@ class GlbErrorBoundary extends Component<
 
   public render(): ReactNode {
     if (this.state.hasError) {
-      return this.props.fallback;
+      return null;
     }
     return this.props.children;
   }
 }
 
+function configureModelMaterial(mat: THREE.Material): THREE.Material {
+  const clonedMat = mat.clone();
+  if (
+    clonedMat instanceof THREE.MeshStandardMaterial ||
+    clonedMat instanceof THREE.MeshPhysicalMaterial
+  ) {
+    clonedMat.envMapIntensity = 1.4;
+    clonedMat.needsUpdate = true;
+  }
+  return clonedMat;
+}
+
 function GlbShowroomModel({ url }: { url: string }) {
   const { scene } = useGLTF(url);
 
-  const normalizedScene = useMemo(() => {
+  const { normalizedScene, clonedMaterials } = useMemo(() => {
     const cloned = scene.clone(true);
-    const box = new THREE.Box3().setFromObject(cloned);
+    const createdMaterials: THREE.Material[] = [];
+
+    const initialBox = new THREE.Box3().setFromObject(cloned);
     const size = new THREE.Vector3();
-    box.getSize(size);
+    initialBox.getSize(size);
 
     const maxHoriz = Math.max(size.x, size.z, 0.001);
-    const scale = 4.8 / maxHoriz;
+    const scale = 4.6 / maxHoriz;
     cloned.scale.setScalar(scale);
+    cloned.updateMatrixWorld(true);
 
     const scaledBox = new THREE.Box3().setFromObject(cloned);
     const scaledCenter = new THREE.Vector3();
     scaledBox.getCenter(scaledCenter);
 
+    // Center horizontally at origin and seat tire bottoms exactly at y = 0
     cloned.position.set(-scaledCenter.x, -scaledBox.min.y, -scaledCenter.z);
 
     cloned.traverse((obj) => {
-      if (obj instanceof THREE.Mesh) {
-        obj.castShadow = true;
-        obj.receiveShadow = true;
+      if (!(obj instanceof THREE.Mesh)) return;
+      obj.castShadow = true;
+      obj.receiveShadow = true;
+
+      if (Array.isArray(obj.material)) {
+        const mapped = obj.material.map((m) => {
+          const clonedMat = configureModelMaterial(m);
+          createdMaterials.push(clonedMat);
+          return clonedMat;
+        });
+        obj.material = mapped;
+      } else if (obj.material) {
+        const clonedMat = configureModelMaterial(obj.material);
+        createdMaterials.push(clonedMat);
+        obj.material = clonedMat;
       }
     });
 
-    return cloned;
+    return { normalizedScene: cloned, clonedMaterials: createdMaterials };
   }, [scene]);
+
+  useEffect(() => {
+    return () => {
+      for (const mat of clonedMaterials) {
+        mat.dispose();
+      }
+    };
+  }, [clonedMaterials]);
 
   return <primitive object={normalizedScene} />;
 }
@@ -72,74 +146,60 @@ function resolveAngleZone(cameraPos: THREE.Vector3): ShowroomAngleZone {
   const rad = Math.atan2(cameraPos.x, -cameraPos.z);
   const deg = ((rad * 180) / Math.PI + 360) % 360;
 
-  if (deg >= 315 || deg < 45) {
-    return 'front';
-  }
-  if (deg >= 45 && deg < 135) {
-    return 'right';
-  }
-  if (deg >= 135 && deg < 225) {
-    return 'rear';
-  }
+  if (deg >= 315 || deg < 45) return 'front';
+  if (deg >= 45 && deg < 135) return 'right';
+  if (deg >= 135 && deg < 225) return 'rear';
   return 'left';
 }
 
-const cockpitTarget = new THREE.Vector3(0, 0.58, -0.15);
-const defaultTarget = new THREE.Vector3(0, 0.42, 0);
-const zoomDirScratch = new THREE.Vector3();
-const zoomPosScratch = new THREE.Vector3();
-
 export function CarShowroom() {
   const { camera } = useThree();
-  const selectedIndex = useGameStore((state) => state.selectedTimelineIndex);
   const quality = useGameStore((state) => state.settings.quality);
-  const explodedCockpit = useGameStore((state) => state.explodedParts.cockpit);
   const activeInspectedPart = useGameStore((state) => state.activeInspectedPart);
+  const toggleInspectedPart = useGameStore((state) => state.toggleInspectedPart);
   const setShowroomZone = useGameStore((state) => state.setShowroomZone);
-  const selectedCar = TIMELINE_CARS[selectedIndex] ?? TIMELINE_CARS[0]!;
 
-  const [hasValidGlb, setHasValidGlb] = useState(false);
   const controlsRef = useRef<OrbitControlsImpl>(null);
   const lastZoneRef = useRef<ShowroomAngleZone>('front');
-  const ringRef = useRef<THREE.MeshBasicMaterial>(null);
-  const targetAccent = useMemo(() => new THREE.Color('#facc15'), []);
+  const isTransitioningRef = useRef(true);
+  const goalPosRef = useRef(DEFAULT_CAMERA_POS.clone());
+  const goalTargetRef = useRef(DEFAULT_CAMERA_TARGET.clone());
+
+  const concreteTex = useMemo(() => createConcreteFloorTextureSet(12, 12), []);
 
   useEffect(() => {
-    let cancelled = false;
-
-    async function checkOptionalGlb() {
-      try {
-        const res = await fetch(SHOWROOM_GLB_PATH);
-        if (!res.ok) return;
-        const buf = await res.arrayBuffer();
-        if (buf.byteLength < 12) return;
-        const view = new Uint8Array(buf, 0, 4);
-        const isBinaryGltf =
-          view[0] === 0x67 && view[1] === 0x6c && view[2] === 0x54 && view[3] === 0x46;
-        if (!cancelled && isBinaryGltf) {
-          setHasValidGlb(true);
-        }
-      } catch {
-        // Optional GLB not present
-      }
-    }
-
-    void checkOptionalGlb();
     return () => {
-      cancelled = true;
+      concreteTex.map.dispose();
+      concreteTex.roughnessMap.dispose();
     };
-  }, []);
+  }, [concreteTex]);
 
   useEffect(() => {
-    camera.position.set(-4.5, 1.32, -6.7);
-    camera.lookAt(0, 0.42, 0);
+    camera.position.copy(DEFAULT_CAMERA_POS);
+    camera.lookAt(DEFAULT_CAMERA_TARGET);
     if (camera instanceof THREE.PerspectiveCamera) {
-      camera.fov = 35;
+      camera.fov = 32;
       camera.updateProjectionMatrix();
     }
     lastZoneRef.current = 'front';
     setShowroomZone('front');
   }, [camera, setShowroomZone]);
+
+  useEffect(() => {
+    if (activeInspectedPart) {
+      const point = TELEMETRY_POINTS.find((item) => item.id === activeInspectedPart);
+      if (point) {
+        goalPosRef.current.copy(point.focusCamera);
+        goalTargetRef.current.copy(point.focusTarget);
+        isTransitioningRef.current = true;
+      }
+      return;
+    }
+
+    goalPosRef.current.copy(DEFAULT_CAMERA_POS);
+    goalTargetRef.current.copy(DEFAULT_CAMERA_TARGET);
+    isTransitioningRef.current = true;
+  }, [activeInspectedPart]);
 
   useFrame((_, delta) => {
     const dt = Math.min(delta, 0.05);
@@ -150,82 +210,70 @@ export function CarShowroom() {
       setShowroomZone(currentZone);
     }
 
-    // Smooth technical zoom into Cockpit when Cockpit inspection is active
     if (controlsRef.current) {
-      const wantCockpitZoom = explodedCockpit && activeInspectedPart === 'cockpit';
-      const goalTarget = wantCockpitZoom ? cockpitTarget : defaultTarget;
-      controlsRef.current.target.lerp(goalTarget, dt * 4.5);
+      if (isTransitioningRef.current) {
+        camera.position.lerp(goalPosRef.current, dt * 4.5);
+        controlsRef.current.target.lerp(goalTargetRef.current, dt * 5.0);
 
-      if (wantCockpitZoom) {
-        const dist = camera.position.distanceTo(controlsRef.current.target);
-        if (dist > 4.6) {
-          zoomDirScratch.subVectors(camera.position, controlsRef.current.target).normalize();
-          zoomPosScratch
-            .copy(controlsRef.current.target)
-            .addScaledVector(zoomDirScratch, 4.2);
-          zoomPosScratch.y = Math.max(1.5, zoomPosScratch.y);
-          camera.position.lerp(zoomPosScratch, dt * 3.5);
+        if (
+          camera.position.distanceTo(goalPosRef.current) < 0.03 &&
+          controlsRef.current.target.distanceTo(goalTargetRef.current) < 0.02
+        ) {
+          isTransitioningRef.current = false;
         }
       }
       controlsRef.current.update();
     }
-
-    if (ringRef.current) {
-      const accentHex =
-        selectedCar.livery.secondary === '#09090B'
-          ? selectedCar.livery.accent
-          : selectedCar.livery.secondary;
-      targetAccent.set(accentHex);
-      ringRef.current.color.lerp(targetAccent, dt * 4);
-    }
   });
-
-  const proceduralFallback = <ShowroomCar car={selectedCar} />;
 
   return (
     <>
-      <color attach="background" args={['#060608']} />
-      <fog attach="fog" args={['#060608', 15, 36]} />
+      <color attach="background" args={['#0d1015']} />
+      <fog attach="fog" args={['#0d1015', 14, 34]} />
 
+      {/* Dramatic Automotive Studio Overhead & Rim Environment */}
       <DreiEnvironment resolution={1024} frames={1}>
+        {/* Main centered overhead rectangular softbox */}
         <Lightformer
           form="rect"
-          intensity={4.2}
+          intensity={4.8}
           color="#ffffff"
-          scale={[3.2, 11.5, 1]}
-          position={[0, 6.4, 0]}
+          scale={[3.4, 12, 1]}
+          position={[0, 6.2, 0]}
           rotation={[Math.PI / 2, 0, 0]}
         />
+        {/* Subtle cool side fill panels */}
         <Lightformer
           form="rect"
-          intensity={2.4}
-          color="#e0f2fe"
-          scale={[12, 2.4, 1]}
-          position={[-6.8, 2.5, 0]}
+          intensity={1.6}
+          color="#dce8ff"
+          scale={[11, 2.2, 1]}
+          position={[-7.2, 2.2, 0]}
           rotation={[0, Math.PI / 2, 0]}
         />
         <Lightformer
           form="rect"
-          intensity={2.4}
-          color="#fef3c7"
-          scale={[12, 2.4, 1]}
-          position={[6.8, 2.5, 0]}
+          intensity={1.6}
+          color="#e2e8f0"
+          scale={[11, 2.2, 1]}
+          position={[7.2, 2.2, 0]}
           rotation={[0, -Math.PI / 2, 0]}
         />
+        {/* Cool rear rim light */}
         <Lightformer
           form="rect"
-          intensity={3.4}
-          color="#fde68a"
-          scale={[9, 1.5, 1]}
-          position={[0, 3.2, 7.2]}
+          intensity={3.0}
+          color="#cbd5e1"
+          scale={[8.5, 1.4, 1]}
+          position={[0, 2.8, 7.6]}
           rotation={[0, Math.PI, 0]}
         />
       </DreiEnvironment>
 
-      <ambientLight intensity={0.35} />
+      <ambientLight intensity={0.28} color="#dce8ff" />
       <directionalLight
-        position={[4.2, 8.8, -5.8]}
-        intensity={2.4}
+        position={[3.6, 9.2, -4.5]}
+        intensity={2.3}
         color="#ffffff"
         castShadow
         shadow-mapSize={[2048, 2048]}
@@ -238,83 +286,119 @@ export function CarShowroom() {
         shadow-bias={-0.0003}
       />
       <spotLight
-        position={[0, 5.2, 7.0]}
-        angle={0.48}
-        penumbra={0.8}
-        intensity={42}
-        color="#fde68a"
+        position={[0, 4.8, 7.2]}
+        angle={0.5}
+        penumbra={0.9}
+        intensity={28}
+        color="#dbeafe"
       />
 
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.004, 0]} receiveShadow>
-        <circleGeometry args={[34, 64]} />
-        <MeshReflectorMaterial
-          blur={[300, 100]}
-          resolution={1024}
-          mixBlur={1}
-          mixStrength={45}
-          roughness={0.35}
-          depthScale={1}
-          minDepthThreshold={0.4}
-          maxDepthThreshold={1.4}
-          color="#0a0a0c"
-          metalness={0.6}
-          mirror={0.55}
+      {/* Subtle dark architectural cyclorama backdrop wall */}
+      <mesh position={[0, 5.5, 0]} receiveShadow>
+        <cylinderGeometry args={[18, 18, 12, 48, 1, true]} />
+        <meshStandardMaterial
+          color="#0a0d12"
+          roughness={0.92}
+          metalness={0.05}
+          side={THREE.BackSide}
         />
       </mesh>
 
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.002, 0]}>
-        <ringGeometry args={[3.35, 3.41, 72]} />
-        <meshBasicMaterial ref={ringRef} color="#facc15" transparent opacity={0.9} />
-      </mesh>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.002, 0]}>
-        <ringGeometry args={[3.88, 3.91, 72]} />
-        <meshBasicMaterial color="#ffffff" transparent opacity={0.18} />
+      {/* Satin Dark Concrete Floor with Subtle Soft Reflection */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.002, 0]} receiveShadow>
+        <circleGeometry args={[34, 64]} />
+        <MeshReflectorMaterial
+          map={concreteTex.map}
+          roughnessMap={concreteTex.roughnessMap}
+          blur={[400, 120]}
+          resolution={1024}
+          mixBlur={1}
+          mixStrength={18}
+          roughness={0.62}
+          depthScale={0.6}
+          minDepthThreshold={0.4}
+          maxDepthThreshold={1.4}
+          color="#161a22"
+          metalness={0.22}
+          mirror={0.35}
+        />
       </mesh>
 
+      {/* Strong Grounding Contact Shadows Under Tires */}
       <ContactShadows
-        position={[0, 0.005, 0]}
-        opacity={0.85}
-        scale={12}
-        blur={1.8}
-        far={3}
+        position={[0, 0.003, 0]}
+        opacity={0.92}
+        scale={10}
+        blur={1.7}
+        far={2.4}
         resolution={512}
         color="#000000"
       />
 
-      {hasValidGlb ? (
-        <GlbErrorBoundary fallback={proceduralFallback}>
-          <Suspense fallback={proceduralFallback}>
-            <GlbShowroomModel url={SHOWROOM_GLB_PATH} />
-          </Suspense>
-        </GlbErrorBoundary>
-      ) : (
-        proceduralFallback
-      )}
+      <GlbErrorBoundary>
+        <Suspense fallback={null}>
+          <GlbShowroomModel url={SHOWROOM_GLB_PATH} />
+        </Suspense>
+      </GlbErrorBoundary>
+
+      {/* Minimal 8px Pulsing Telemetry Dots for Interactive Part Inspection */}
+      {TELEMETRY_POINTS.map((point) => {
+        const isActive = activeInspectedPart === point.id;
+        return (
+          <Html key={point.id} position={point.position} center distanceFactor={6}>
+            <button
+              type="button"
+              onClick={() => toggleInspectedPart(point.id)}
+              aria-label={`Inspecionar ${point.label}`}
+              title={point.label}
+              className="group relative flex h-5 w-5 cursor-pointer items-center justify-center focus:outline-none"
+            >
+              <span
+                className={`absolute h-4 w-4 rounded-full animate-ping ${
+                  isActive ? 'bg-yellow-400/55' : 'bg-white/40'
+                }`}
+              />
+              <span
+                className={`relative h-2 w-2 rounded-full border transition-transform group-hover:scale-125 ${
+                  isActive
+                    ? 'border-yellow-200 bg-yellow-400 shadow-[0_0_8px_rgba(250,204,21,0.9)]'
+                    : 'border-white bg-white/95 shadow-[0_0_6px_rgba(255,255,255,0.7)]'
+                }`}
+              />
+            </button>
+          </Html>
+        );
+      })}
 
       <OrbitControls
         ref={controlsRef}
         enableZoom
         enablePan={false}
-        autoRotate={!explodedCockpit}
-        autoRotateSpeed={1.2}
-        minDistance={3.6}
-        maxDistance={13.5}
-        minPolarAngle={Math.PI / 4}
-        maxPolarAngle={Math.PI / 2.15}
-        target={[0, 0.42, 0]}
+        autoRotate={activeInspectedPart === null}
+        autoRotateSpeed={0.65}
+        minDistance={2.1}
+        maxDistance={12.5}
+        minPolarAngle={Math.PI / 5}
+        maxPolarAngle={Math.PI / 2.12}
+        target={[0, 0.36, 0]}
+        onStart={() => {
+          isTransitioningRef.current = false;
+        }}
       />
 
       {quality !== 'low' && (
         <EffectComposer multisampling={0}>
           <Bloom
             mipmapBlur
-            luminanceThreshold={1.0}
+            luminanceThreshold={1.05}
             luminanceSmoothing={0.25}
-            intensity={0.28}
+            intensity={0.22}
           />
-          <Vignette eskil={false} offset={0.24} darkness={0.45} />
+          <Vignette eskil={false} offset={0.26} darkness={0.48} />
         </EffectComposer>
       )}
     </>
   );
 }
+
+useGLTF.preload(SHOWROOM_GLB_PATH);

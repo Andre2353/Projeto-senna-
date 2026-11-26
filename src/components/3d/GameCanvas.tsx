@@ -159,7 +159,7 @@ export function GameCanvas() {
         <Canvas
           shadows={quality === 'low' ? false : 'percentage'}
           dpr={[1, 2]}
-          camera={{ fov: 35, near: 0.2, far: 1800, position: [-4.5, 1.32, -6.7] }}
+          camera={{ fov: 32, near: 0.2, far: 1800, position: [-4.6, 1.08, -6.2] }}
           gl={{
             antialias: true,
             powerPreference: 'default',

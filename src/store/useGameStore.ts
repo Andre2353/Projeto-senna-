@@ -118,7 +118,6 @@ interface GameStoreState {
   settings: GameSettings;
   selectedTimelineIndex: number;
   showroomZone: ShowroomAngleZone;
-  explodedParts: Record<ExplodedPart, boolean>;
   activeInspectedPart: ExplodedPart | null;
 
   setLoadProgress: (progress: number) => void;
@@ -126,9 +125,8 @@ interface GameStoreState {
   setWebglSupported: (supported: boolean) => void;
   setSelectedTimelineIndex: (index: number) => void;
   setShowroomZone: (zone: ShowroomAngleZone) => void;
-  toggleExplodedPart: (part: ExplodedPart) => void;
-  openAllExploded: () => void;
-  closeAllExploded: () => void;
+  toggleInspectedPart: (part: ExplodedPart) => void;
+  clearInspection: () => void;
   returnToTimeline: () => void;
   startExperience: () => void;
   enterStage: (stageId: number) => void;
@@ -168,12 +166,6 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   settings: initialPersisted.settings,
   selectedTimelineIndex: 0,
   showroomZone: 'front',
-  explodedParts: {
-    engine: false,
-    wheels: false,
-    aero: false,
-    cockpit: false,
-  },
   activeInspectedPart: null,
 
   setLoadProgress: (progress) => set({ loadProgress: Math.min(100, Math.max(0, progress)) }),
@@ -186,43 +178,12 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
 
   setShowroomZone: (zone) => set({ showroomZone: zone }),
 
-  toggleExplodedPart: (part) =>
-    set((state) => {
-      const nextValue = !state.explodedParts[part];
-      return {
-        explodedParts: {
-          ...state.explodedParts,
-          [part]: nextValue,
-        },
-        activeInspectedPart: nextValue
-          ? part
-          : state.activeInspectedPart === part
-            ? null
-            : state.activeInspectedPart,
-      };
-    }),
+  toggleInspectedPart: (part) =>
+    set((state) => ({
+      activeInspectedPart: state.activeInspectedPart === part ? null : part,
+    })),
 
-  openAllExploded: () =>
-    set({
-      explodedParts: {
-        engine: true,
-        wheels: true,
-        aero: true,
-        cockpit: true,
-      },
-      activeInspectedPart: 'engine',
-    }),
-
-  closeAllExploded: () =>
-    set({
-      explodedParts: {
-        engine: false,
-        wheels: false,
-        aero: false,
-        cockpit: false,
-      },
-      activeInspectedPart: null,
-    }),
+  clearInspection: () => set({ activeInspectedPart: null }),
 
   returnToTimeline: () => {
     resetForCorridor(0, false);
