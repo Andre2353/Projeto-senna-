@@ -2,6 +2,7 @@ import { GameCanvas } from './components/3d/GameCanvas';
 import { LandingScreen } from './components/ui/LandingScreen';
 import { LoadingScreen } from './components/ui/LoadingScreen';
 import { PauseMenu } from './components/ui/PauseMenu';
+import { PhaseTransition } from './components/ui/PhaseTransition';
 import { TelemetryHUD } from './components/ui/TelemetryHUD';
 import { useAudioEngine } from './hooks/useAudioEngine';
 import { useGameControls } from './hooks/useGameControls';
@@ -15,6 +16,7 @@ export function App() {
       <GameCanvas />
       <LoadingScreen />
       <LandingScreen />
+      <PhaseTransition />
       <TelemetryHUD />
       <PauseMenu />
     </main>

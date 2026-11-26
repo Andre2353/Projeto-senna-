@@ -7,8 +7,10 @@ import { getQualityProfile } from '../../utils/performance';
 import { updateCarPhysics } from '../../utils/physics';
 import { gameRuntime } from '../../utils/runtime';
 import { CameraController } from './CameraController';
+import { CorridorTrack } from './CorridorTrack';
 import { Environment } from './Environment';
 import { FormulaCar } from './FormulaCar';
+import { RaceTrack } from './RaceTrack';
 import { SceneLighting } from './SceneLighting';
 
 interface CanvasErrorBoundaryProps {
@@ -75,7 +77,7 @@ function SceneCore() {
       return;
     }
 
-    if (isPaused || mode === 'credits') {
+    if (isPaused || mode === 'credits' || gameRuntime.raceFinished) {
       return;
     }
 
@@ -91,12 +93,8 @@ function SceneCore() {
       <SceneLighting />
       <CameraController />
       <FormulaCar />
-
-      {/* Track surface placeholder until Phase D full CorridorTrack/RaceTrack */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, -2200]} receiveShadow>
-        <planeGeometry args={[860, 4800]} />
-        <meshStandardMaterial color="#18181b" roughness={0.78} metalness={0.18} />
-      </mesh>
+      <CorridorTrack />
+      <RaceTrack />
     </>
   );
 }
