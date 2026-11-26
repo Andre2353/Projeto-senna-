@@ -1,6 +1,8 @@
 import { GameCanvas } from './components/3d/GameCanvas';
+import { EndCredits } from './components/ui/EndCredits';
 import { LandingScreen } from './components/ui/LandingScreen';
 import { LoadingScreen } from './components/ui/LoadingScreen';
+import { NarrativeCard } from './components/ui/NarrativeCard';
 import { PauseMenu } from './components/ui/PauseMenu';
 import { PhaseTransition } from './components/ui/PhaseTransition';
 import { TelemetryHUD } from './components/ui/TelemetryHUD';
@@ -17,8 +19,10 @@ export function App() {
       <LoadingScreen />
       <LandingScreen />
       <PhaseTransition />
+      <NarrativeCard />
       <TelemetryHUD />
       <PauseMenu />
+      <EndCredits />
     </main>
   );
 }
