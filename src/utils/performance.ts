@@ -40,3 +40,55 @@ export function getQualityProfile(quality: GraphicsQuality): QualityProfile {
       };
   }
 }
+
+let cachedWebGLSupport: boolean | null = null;
+
+/**
+ * Passive, cached WebGL capability check with permissive attributes and
+ * clean context release so React.StrictMode never leaks or loses contexts.
+ */
+export function detectWebGLSupport(): boolean {
+  if (cachedWebGLSupport !== null) {
+    return cachedWebGLSupport;
+  }
+
+  if (typeof window === 'undefined' || typeof document === 'undefined') {
+    return false;
+  }
+
+  try {
+    const canvas = document.createElement('canvas');
+    const contextAttributes: WebGLContextAttributes = {
+      alpha: true,
+      antialias: false,
+      depth: true,
+      failIfMajorPerformanceCaveat: false,
+      powerPreference: 'default',
+    };
+
+    const gl =
+      (canvas.getContext('webgl2', contextAttributes) as WebGL2RenderingContext | null) ||
+      (canvas.getContext('webgl', contextAttributes) as WebGLRenderingContext | null) ||
+      (canvas.getContext('experimental-webgl', contextAttributes) as WebGLRenderingContext | null);
+
+    if (!gl) {
+      cachedWebGLSupport = false;
+      return false;
+    }
+
+    const loseExt = gl.getExtension('WEBGL_lose_context');
+    if (loseExt) {
+      loseExt.loseContext();
+    }
+
+    cachedWebGLSupport = true;
+    return true;
+  } catch {
+    cachedWebGLSupport = false;
+    return false;
+  }
+}
+
+export function resetWebGLSupportCache(): void {
+  cachedWebGLSupport = null;
+}

@@ -143,10 +143,6 @@ export function CorridorTrack() {
     }
   });
 
-  if (mode !== 'landing' && mode !== 'corridor') {
-    return null;
-  }
-
   // Build barrier segments leaving openings at portal bays
   const barrierSegments = useMemo(() => {
     const segments: Array<{ side: -1 | 1; zStart: number; zEnd: number }> = [];
@@ -170,6 +166,10 @@ export function CorridorTrack() {
     }
     return segments;
   }, []);
+
+  if (mode !== 'landing' && mode !== 'corridor') {
+    return null;
+  }
 
   const roadSignsZ = [-95, -580, -1030, -1480, -1930, -2380, -2830];
 

@@ -1,9 +1,9 @@
-import { Component, type ErrorInfo, type ReactNode, useEffect } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
+import { Component, type ErrorInfo, type ReactNode, useCallback, useEffect, useRef } from 'react';
+import { Canvas, type RootState, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { STAGES } from '../../data/sennaData';
 import { useGameStore } from '../../store/useGameStore';
-import { getQualityProfile } from '../../utils/performance';
+import { detectWebGLSupport, getQualityProfile } from '../../utils/performance';
 import { updateCarPhysics } from '../../utils/physics';
 import { gameRuntime } from '../../utils/runtime';
 import { CameraController } from './CameraController';
@@ -17,7 +17,7 @@ import { SceneLighting } from './SceneLighting';
 
 interface CanvasErrorBoundaryProps {
   children: ReactNode;
-  onError: () => void;
+  onError: (error: Error) => void;
 }
 
 interface CanvasErrorBoundaryState {
@@ -31,8 +31,9 @@ class CanvasErrorBoundary extends Component<CanvasErrorBoundaryProps, CanvasErro
     return { hasError: true };
   }
 
-  public componentDidCatch(_error: Error, _info: ErrorInfo): void {
-    this.props.onError();
+  public componentDidCatch(error: Error, info: ErrorInfo): void {
+    console.error('[GameCanvas] Falha ao inicializar WebGL / Cena 3D:', error, info);
+    this.props.onError(error);
   }
 
   public render(): ReactNode {
@@ -40,19 +41,6 @@ class CanvasErrorBoundary extends Component<CanvasErrorBoundaryProps, CanvasErro
       return null;
     }
     return this.props.children;
-  }
-}
-
-function isWebGLAvailable(): boolean {
-  if (typeof window === 'undefined') {
-    return false;
-  }
-  try {
-    const canvas = document.createElement('canvas');
-    const gl = canvas.getContext('webgl2') || canvas.getContext('webgl');
-    return gl !== null;
-  } catch {
-    return false;
   }
 }
 
@@ -109,17 +97,46 @@ export function GameCanvas() {
   const setWebglSupported = useGameStore((state) => state.setWebglSupported);
   const setLoadProgress = useGameStore((state) => state.setLoadProgress);
   const markLoaded = useGameStore((state) => state.markLoaded);
+  const cleanupContextListenerRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
-    setLoadProgress(50);
-    const supported = isWebGLAvailable();
-    setWebglSupported(supported);
-    if (!supported) {
+    setLoadProgress(65);
+    return () => {
+      cleanupContextListenerRef.current?.();
+      cleanupContextListenerRef.current = null;
+    };
+  }, [setLoadProgress]);
+
+  const handleCanvasFailure = useCallback(() => {
+    setWebglSupported(false);
+    markLoaded();
+  }, [markLoaded, setWebglSupported]);
+
+  const handleCreated = useCallback(
+    (state: RootState) => {
+      const glContext = state.gl.getContext();
+      if (!glContext) {
+        if (!detectWebGLSupport()) {
+          handleCanvasFailure();
+        }
+        return;
+      }
+
+      const domElement = state.gl.domElement;
+      const onContextLost = (event: Event) => {
+        event.preventDefault();
+      };
+      domElement.addEventListener('webglcontextlost', onContextLost, false);
+      cleanupContextListenerRef.current?.();
+      cleanupContextListenerRef.current = () => {
+        domElement.removeEventListener('webglcontextlost', onContextLost, false);
+      };
+
+      setWebglSupported(true);
       markLoaded();
-    } else {
-      setLoadProgress(95);
-    }
-  }, [markLoaded, setLoadProgress, setWebglSupported]);
+    },
+    [handleCanvasFailure, markLoaded, setWebglSupported]
+  );
 
   if (!webglSupported) {
     return (
@@ -143,7 +160,7 @@ export function GameCanvas() {
   const profile = getQualityProfile(quality);
 
   return (
-    <CanvasErrorBoundary onError={() => setWebglSupported(false)}>
+    <CanvasErrorBoundary onError={handleCanvasFailure}>
       <div className="fixed inset-0 h-full w-full">
         <Canvas
           shadows={quality !== 'low'}
@@ -151,10 +168,12 @@ export function GameCanvas() {
           camera={{ fov: 55, near: 0.2, far: 1400, position: [5.2, 2.35, 7.4] }}
           gl={{
             antialias: quality !== 'low',
-            powerPreference: 'high-performance',
+            powerPreference: 'default',
+            failIfMajorPerformanceCaveat: false,
             toneMapping: THREE.ACESFilmicToneMapping,
             toneMappingExposure: 1.05,
           }}
+          onCreated={handleCreated}
         >
           <SceneCore />
         </Canvas>
