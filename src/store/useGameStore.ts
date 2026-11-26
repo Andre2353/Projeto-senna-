@@ -266,7 +266,10 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     set({
       completedStages: updatedCompleted,
       raceResult: result,
-      tacticalAlert: result.status === 'victory' ? 'BANDEIRADA' : 'P2 — FINAL',
+      tacticalAlert:
+        result.status === 'victory'
+          ? 'BANDEIRADA · P1'
+          : `BANDEIRADA · P${result.position}`,
     });
   },
 
@@ -286,8 +289,8 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       raceResult: null,
       tacticalAlert: null,
       transitionBanner: {
-        title: 'CORREDOR PRINCIPAL',
-        subtitle: 'SIGA PARA OS PRÓXIMOS PORTAIS OU ACELERE ATÉ O HORIZONTE',
+        title: 'AUTÓDROMO PRINCIPAL',
+        subtitle: 'ESCOLHA UM PORTAL LATERAL OU ACELERE RETO ATÉ O LEGADO',
         accentColor: '#16A34A',
       },
     });
