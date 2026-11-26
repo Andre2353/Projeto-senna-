@@ -1,6 +1,7 @@
-import { Power } from 'lucide-react';
+import { Play } from 'lucide-react';
 import { useGameStore } from '../../store/useGameStore';
 import { gameRuntime } from '../../utils/runtime';
+import { TimelineSection } from './TimelineSection';
 
 export function LandingScreen() {
   const mode = useGameStore((state) => state.mode);
@@ -11,7 +12,6 @@ export function LandingScreen() {
   }
 
   const handleStart = () => {
-    // Unlock browser AudioContext directly inside the user click gesture
     if (typeof window !== 'undefined') {
       const AudioCtx =
         window.AudioContext ||
@@ -29,51 +29,36 @@ export function LandingScreen() {
   };
 
   return (
-    <div className="pointer-events-none fixed inset-0 z-20 flex flex-col items-center justify-center px-6">
-      <div className="pointer-events-auto relative w-full max-w-xl border border-white/15 bg-zinc-950/75 px-10 py-9 text-center backdrop-blur-md">
-        {/* Helmet-inspired technical accent bar */}
-        <div className="mx-auto mb-6 flex h-1 w-28 overflow-hidden">
-          <span className="h-full w-2/4 bg-yellow-400" />
-          <span className="h-full w-1/4 bg-green-600" />
-          <span className="h-full w-1/4 bg-blue-700" />
-        </div>
-
-        <p className="font-telemetry text-[11px] tracking-[0.32em] text-yellow-400">
-          TELEMETRIA INTERATIVA · DESKTOP 60 FPS
-        </p>
-
-        <h1 className="mt-3 text-5xl font-black tracking-tight text-slate-50">
-          AYRTON SENNA
-        </h1>
-
-        <p className="mt-2 font-telemetry text-sm font-semibold tracking-[0.28em] text-zinc-300">
-          7 PORTAIS DO LEGADO
-        </p>
-
-        <p className="mx-auto mt-5 max-w-md text-sm leading-relaxed text-zinc-300">
-          Entre nos portais para reviver 7 corridas lendárias — ou siga em frente para conhecer
-          sua trajetória.
-        </p>
-
-        <div className="mt-8 flex flex-col items-center gap-4">
-          <button
-            type="button"
-            onClick={handleStart}
-            className="inline-flex cursor-pointer items-center gap-3 border border-yellow-400 bg-yellow-400 px-7 py-3.5 font-telemetry text-xs font-bold tracking-[0.22em] text-zinc-950 transition hover:bg-yellow-300 focus:outline-none focus:ring-2 focus:ring-yellow-400/60"
-          >
-            <Power className="h-4 w-4" />
-            LIGAR MOTOR / INICIAR
-          </button>
-
-          <div className="flex items-center gap-5 font-telemetry text-[11px] tracking-wider text-zinc-400">
-            <span>W/A/S/D OU SETAS: PILOTAR</span>
-            <span className="text-zinc-700">|</span>
-            <span>M: ÁUDIO</span>
-            <span className="text-zinc-700">|</span>
-            <span>ESC: PAUSA</span>
+    <div className="pointer-events-none fixed inset-0 z-20">
+      {/* TOP HEADER BAR: Identity + Main Playable CTA */}
+      <header className="pointer-events-auto fixed top-5 right-6 left-6 flex items-center justify-between gap-6 border border-white/15 bg-zinc-950/80 px-6 py-3.5 backdrop-blur-md">
+        <div className="flex items-center gap-4">
+          <div className="flex h-8 w-1.5 flex-col overflow-hidden">
+            <span className="h-2/4 w-full bg-yellow-400" />
+            <span className="h-1/4 w-full bg-green-600" />
+            <span className="h-1/4 w-full bg-blue-700" />
+          </div>
+          <div>
+            <p className="font-telemetry text-[10px] tracking-[0.26em] text-yellow-400">
+              SHOWROOM 360° & TIMELINE INTERATIVA · 1984–1993
+            </p>
+            <h1 className="text-xl font-black tracking-tight text-slate-50">
+              AYRTON SENNA — 7 PORTAIS DO LEGADO
+            </h1>
           </div>
         </div>
-      </div>
+
+        <button
+          type="button"
+          onClick={handleStart}
+          className="inline-flex cursor-pointer items-center gap-2.5 border border-yellow-400 bg-yellow-400 px-6 py-3 font-telemetry text-xs font-bold tracking-[0.2em] text-zinc-950 transition hover:bg-yellow-300 focus:outline-none focus:ring-2 focus:ring-yellow-400/60"
+        >
+          <Play className="h-4 w-4 fill-zinc-950" />
+          <span>VIVER AS CORRIDAS PESSOALMENTE</span>
+        </button>
+      </header>
+
+      <TimelineSection />
     </div>
   );
 }

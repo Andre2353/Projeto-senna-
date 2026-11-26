@@ -7,6 +7,7 @@ import { detectWebGLSupport, getQualityProfile } from '../../utils/performance';
 import { updateCarPhysics } from '../../utils/physics';
 import { gameRuntime } from '../../utils/runtime';
 import { CameraController } from './CameraController';
+import { CarShowroom } from './CarShowroom';
 import { CorridorTrack } from './CorridorTrack';
 import { Effects } from './Effects';
 import { Environment } from './Environment';
@@ -58,16 +59,7 @@ function SceneCore() {
   useFrame((_, delta) => {
     const dt = Math.min(delta, 0.05);
 
-    if (mode === 'landing') {
-      gameRuntime.speed = 65;
-      gameRuntime.position.z -= dt * 18;
-      if (gameRuntime.position.z < -260) {
-        gameRuntime.position.z = 0;
-      }
-      return;
-    }
-
-    if (isPaused || mode === 'credits' || gameRuntime.raceFinished) {
+    if (mode === 'landing' || isPaused || mode === 'credits' || gameRuntime.raceFinished) {
       return;
     }
 
@@ -76,6 +68,10 @@ function SceneCore() {
 
     updateCarPhysics(dt, mode, activeStage, steeringSensitivity);
   });
+
+  if (mode === 'landing') {
+    return <CarShowroom />;
+  }
 
   return (
     <>

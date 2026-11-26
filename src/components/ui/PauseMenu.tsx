@@ -11,6 +11,7 @@ export function PauseMenu() {
   const returnToCorridor = useGameStore((state) => state.returnToCorridor);
   const restartCurrentStage = useGameStore((state) => state.restartCurrentStage);
   const enterOpenWorld = useGameStore((state) => state.enterOpenWorld);
+  const returnToTimeline = useGameStore((state) => state.returnToTimeline);
   const resetAllProgress = useGameStore((state) => state.resetAllProgress);
 
   if (!isPaused || mode === 'landing' || mode === 'credits') {
@@ -76,6 +77,15 @@ export function PauseMenu() {
                 <Compass className="h-4 w-4" />
               </button>
             )}
+
+            <button
+              type="button"
+              onClick={returnToTimeline}
+              className="flex cursor-pointer items-center justify-between border border-white/15 bg-zinc-900/80 px-4 py-2.5 font-telemetry text-xs tracking-[0.14em] text-slate-50 transition hover:border-yellow-400/60"
+            >
+              <span>VOLTAR PARA A TIMELINE / SHOWROOM</span>
+              <ArrowLeft className="h-4 w-4 text-zinc-400" />
+            </button>
 
             <button
               type="button"

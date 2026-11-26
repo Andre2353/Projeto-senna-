@@ -1,4 +1,10 @@
-import type { CarLivery, ChapterMonument, GameSettings, StageConfig } from '../types/game';
+import type {
+  CarLivery,
+  ChapterMonument,
+  GameSettings,
+  StageConfig,
+  TimelineCarEntry,
+} from '../types/game';
 
 export const CORRIDOR_START_Z = 0;
 export const CORRIDOR_END_Z = -950;
@@ -519,5 +525,155 @@ export const OPEN_WORLD_CHAPTERS: readonly ChapterMonument[] = [
     position: { x: 0, z: -1895 },
     accentColor: '#16A34A',
     visualType: 'eternal_helmet',
+  },
+];
+
+export const TIMELINE_CARS: readonly TimelineCarEntry[] = [
+  {
+    stageId: 1,
+    year: 1984,
+    eraTitle: 'Estreia e Mônaco 84',
+    chassis: 'Toleman TG184',
+    team: 'Toleman Group Motorsport',
+    circuitLabel: 'MÔNACO 1984',
+    summary:
+      'Temporada de estreia na Fórmula 1. Sob dilúvio nas ruas de Monte Carlo, Senna escalou o pelotão com um carro modesto e anunciou ao mundo uma precisão fora de série.',
+    livery: STAGES[0]!.car,
+    specs: {
+      aeroFront:
+        'Asa dianteira biplano de alta carga aerodinâmica para máxima aderência em curvas lentas de rua e piso encharcado.',
+      engineChassis:
+        'Monocoque em fibra de carbono e Kevlar projetado por Rory Byrne. Motor Hart 415T 1.5L 4 cilindros Turbo (~600 cv) e câmbio manual de 5 marchas.',
+      rearTraction:
+        'Asa traseira dupla com endplates altos e difusor Venturi trabalhando junto aos pneus slick/chuva para estabilizar a traseira arisca do turbo.',
+      cockpitDriver:
+        'Cockpit aberto estreito, alavanca de câmbio mecânica à direita e capacete amarelo com faixas verde e azul já consolidado como marca registrada.',
+    },
+  },
+  {
+    stageId: 2,
+    year: 1985,
+    eraTitle: 'Primeira Vitória — Estoril 85',
+    chassis: 'Lotus 97T',
+    team: 'John Player Special Team Lotus',
+    circuitLabel: 'ESTORIL 1985',
+    summary:
+      'Na icônica pintura preta e dourada, Senna conquistou sua primeira pole position e sua primeira vitória na Fórmula 1 em Estoril, liderando de ponta a ponta sob tempestade.',
+    livery: STAGES[1]!.car,
+    specs: {
+      aeroFront:
+        'Bico afilado com placas terminais esculpidas e dutos de refrigeração integrados para equilibrar o carro em freadas de alta velocidade.',
+      engineChassis:
+        'Chassi Lotus 97T em colmeia de alumínio e carbono. Motor Renault EF4B 1.5L V6 Biturbo (~780 cv em corrida, >950 cv em classificação) com 540 kg.',
+      rearTraction:
+        'Sidepods recortados direcionando fluxo limpo para o conjunto traseiro e asa de alto arrasto otimizada para tração na saída de curva.',
+      cockpitDriver:
+        'Posição de pilotagem recuada, volante de três raios em camurça e resposta imediata de pedal para domar o lag do biturbo francês.',
+    },
+  },
+  {
+    stageId: 3,
+    year: 1988,
+    eraTitle: 'Primeiro Título — Suzuka 88',
+    chassis: 'McLaren MP4/4',
+    team: 'Honda Marlboro McLaren',
+    circuitLabel: 'SUZUKA 1988',
+    summary:
+      'Um dos monopostos mais dominantes da história. Após uma queda de rotação na largada em Suzuka, Senna recuperou posição por posição para conquistar seu primeiro campeonato mundial.',
+    livery: STAGES[2]!.car,
+    specs: {
+      aeroFront:
+        'Frente extremamente baixa assinada por Steve Nichols e Gordon Murray, reduzindo drasticamente a área frontal e alimentando o assoalho plano.',
+      engineChassis:
+        'Chassi ultrabaixo em fibra de carbono. Motor Honda RA168E 1.5L V6 Biturbo (limitado a 2.5 bar, ~685 cv), câmbio transversal de 6 marchas e 540 kg.',
+      rearTraction:
+        'Fluxo traseiro limpo sobre a tampa do motor em perfil baixo, maximizando a eficiência do difusor Venturi e da asa traseira biplano.',
+      cockpitDriver:
+        'Piloto praticamente deitado no monocoque ultrabaixo; proteção frontal reduzida e viseira escura focada nos S de Suzuka.',
+    },
+  },
+  {
+    stageId: 4,
+    year: 1990,
+    eraTitle: 'Bicampeonato — Phoenix 90',
+    chassis: 'McLaren MP4/5B',
+    team: 'Honda Marlboro McLaren',
+    circuitLabel: 'PHOENIX 1990',
+    summary:
+      'Na era dos motores aspirados, Senna defendeu sua posição em duelos intensos como contra Jean Alesi em Phoenix, encaminhando o bicampeonato mundial.',
+    livery: STAGES[3]!.car,
+    specs: {
+      aeroFront:
+        'Bico fino com asa dianteira elevada nas extremidades para canalizar vórtices energizados sob os sidepods laterais.',
+      engineChassis:
+        'Monocoque em carbono McLaren com motor Honda RA100E 3.5L V10 atmosférico (~690 cv a 13.000 RPM), câmbio manual de 6 marchas e 505 kg.',
+      rearTraction:
+        'Traseira compactada em formato coca-cola com difusor multicanais de alta eficiência para compensar curvas urbanas de baixa aderência.',
+      cockpitDriver:
+        'Tomada de ar superior elevada acima do santo-antônio alimentando o V10 aspirado logo atrás do capacete amarelo.',
+    },
+  },
+  {
+    stageId: 5,
+    year: 1991,
+    eraTitle: 'Tricampeonato — Interlagos 91',
+    chassis: 'McLaren MP4/6',
+    team: 'Honda Marlboro McLaren',
+    circuitLabel: 'INTERLAGOS 1991',
+    summary:
+      'Com o novo V12 da Honda, Senna finalmente venceu em Interlagos após perder as marchas finais e terminar a prova pilotando apenas em 6ª marcha sob chuva leve.',
+    livery: STAGES[4]!.car,
+    specs: {
+      aeroFront:
+        'Asa dianteira de dois elementos com endplates curvados para minimizar turbulência das rodas dianteiras e preservar estabilidade direcional.',
+      engineChassis:
+        'Chassi MP4/6 em carbono estrutural com motor Honda RA121E 3.5L V12 atmosférico (~725 cv a 13.800 RPM), câmbio manual em H de 6 marchas e 505 kg.',
+      rearTraction:
+        'Conjunto traseiro reforçado para acomodar o longo bloco V12 e entregar tração progressiva na subida da Junção em Interlagos.',
+      cockpitDriver:
+        'Último carro campeão da F1 com câmbio manual em H — exigiu força física extrema de Senna ao travar na 6ª marcha no Brasil.',
+    },
+  },
+  {
+    stageId: 6,
+    year: 1992,
+    eraTitle: 'Defesa Histórica — Mônaco 92',
+    chassis: 'McLaren MP4/7A',
+    team: 'Honda Marlboro McLaren',
+    circuitLabel: 'MÔNACO 1992',
+    summary:
+      'Em um ano de domínio técnico rival, Senna segurou Nigel Mansell nas voltas finais de Mônaco com posicionamento defensivo cirúrgico para conquistar sua quinta vitória no Principado.',
+    livery: STAGES[5]!.car,
+    specs: {
+      aeroFront:
+        'Asa dianteira de carga máxima específica para Monte Carlo, garantindo precisão milimétrica a centímetros dos guard-rails.',
+      engineChassis:
+        'Primeiro McLaren com câmbio semiautomático por borboletas e acelerador eletrônico. Motor Honda RA122E/B 3.5L V12 (~750 cv) e 505 kg.',
+      rearTraction:
+        'Pacote traseiro de máximo downforce e estabilidade em frenagem para fechar a porta na saída do túnel e na chicane do porto.',
+      cockpitDriver:
+        'Volante equipado com comandos eletrônicos e borboletas de troca rápida, mantendo as duas mãos no volante entre os muros de Mônaco.',
+    },
+  },
+  {
+    stageId: 7,
+    year: 1993,
+    eraTitle: 'A Volta dos Deuses — Donington 93',
+    chassis: 'McLaren MP4/8',
+    team: 'Marlboro McLaren',
+    circuitLabel: 'DONINGTON 1993',
+    summary:
+      'Mesmo em desvantagem de potência, Senna assinou uma das maiores primeiras voltas da história em Donington Park, superando quatro adversários sob chuva em menos de uma volta.',
+    livery: STAGES[6]!.car,
+    specs: {
+      aeroFront:
+        'Bico alto com suportes verticais e flaps adicionais que ampliavam o fluxo limpo sob o assoalho em conjunto com a suspensão ativa.',
+      engineChassis:
+        'Chassi ágil com suspensão ativa eletrônica e controle de tração. Motor Ford Cosworth HBD7 3.5L V8 (~680 cv), câmbio semiautomático de 6 marchas e 505 kg.',
+      rearTraction:
+        'Asa traseira compacta e difusor refinado trabalhando com a altura dinâmica controlada eletronicamente no asfalto encharcado.',
+      cockpitDriver:
+        'Cockpit equipado com telemetria avançada e leitura de pista impecável sob spray intenso, permitindo linhas externas impossíveis.',
+    },
   },
 ];

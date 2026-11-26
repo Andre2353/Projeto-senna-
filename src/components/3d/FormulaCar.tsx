@@ -14,6 +14,7 @@ import { gameRuntime } from '../../utils/runtime';
 interface FormulaChassisProps {
   livery: CarLivery;
   isSennaHelmet?: boolean;
+  realistic?: boolean;
   rearLightRef?: React.RefObject<THREE.MeshStandardMaterial | null>;
   primaryMatRef?: React.RefObject<THREE.MeshPhysicalMaterial | null>;
   secondaryMatRef?: React.RefObject<THREE.MeshPhysicalMaterial | null>;
@@ -21,6 +22,12 @@ interface FormulaChassisProps {
   frontLeftSteerRef?: React.RefObject<THREE.Group | null>;
   frontRightSteerRef?: React.RefObject<THREE.Group | null>;
   wheelSpinRefs?: React.MutableRefObject<(THREE.Group | null)[]>;
+}
+
+export interface FormulaCarProps {
+  realistic?: boolean;
+  liveryOverride?: CarLivery;
+  staticPose?: boolean;
 }
 
 function createBodyworkCowlingGeometry(): THREE.ExtrudeGeometry {
@@ -172,6 +179,7 @@ function DetailedWheel({
 export function FormulaChassis({
   livery,
   isSennaHelmet = true,
+  realistic = false,
   rearLightRef,
   primaryMatRef,
   secondaryMatRef,
@@ -438,7 +446,11 @@ export function FormulaChassis({
         {/* Mirrored dark visor */}
         <mesh position={[0, 0.02, -0.125]} rotation={[0.15, 0, 0]}>
           <boxGeometry args={[0.23, 0.07, 0.095]} />
-          <meshStandardMaterial color="#09090b" roughness={0.08} metalness={0.92} />
+          <meshStandardMaterial
+            color="#09090b"
+            roughness={realistic ? 0.05 : 0.08}
+            metalness={realistic ? 0.95 : 0.92}
+          />
         </mesh>
       </group>
 
@@ -626,7 +638,11 @@ export function FormulaChassis({
   );
 }
 
-export function FormulaCar() {
+export function FormulaCar({
+  realistic = false,
+  liveryOverride,
+  staticPose = false,
+}: FormulaCarProps = {}) {
   const activeStageId = useGameStore((state) => state.activeStageId);
 
   const carGroupRef = useRef<THREE.Group>(null);
@@ -640,11 +656,14 @@ export function FormulaCar() {
   const accentMatRef = useRef<THREE.MeshPhysicalMaterial>(null);
 
   const activeLivery = useMemo(() => {
+    if (liveryOverride) {
+      return liveryOverride;
+    }
     if (activeStageId === null) {
       return DEFAULT_MCLAREN_LIVERY;
     }
     return STAGES.find((stage) => stage.id === activeStageId)?.car ?? DEFAULT_MCLAREN_LIVERY;
-  }, [activeStageId]);
+  }, [activeStageId, liveryOverride]);
 
   const targetPrimary = useMemo(() => new THREE.Color(DEFAULT_MCLAREN_LIVERY.primary), []);
   const targetSecondary = useMemo(() => new THREE.Color(DEFAULT_MCLAREN_LIVERY.secondary), []);
@@ -658,36 +677,44 @@ export function FormulaCar() {
       return;
     }
 
-    car.position.set(gameRuntime.position.x, gameRuntime.position.y, gameRuntime.position.z);
-    car.rotation.y = gameRuntime.heading;
+    if (staticPose) {
+      car.position.set(0, 0, 0);
+      car.rotation.y = 0;
+      if (chassisTiltRef.current) {
+        chassisTiltRef.current.rotation.set(0, 0, 0);
+      }
+    } else {
+      car.position.set(gameRuntime.position.x, gameRuntime.position.y, gameRuntime.position.z);
+      car.rotation.y = gameRuntime.heading;
 
-    if (chassisTiltRef.current) {
-      chassisTiltRef.current.rotation.z = THREE.MathUtils.lerp(
-        chassisTiltRef.current.rotation.z,
-        gameRuntime.rotation.z,
-        dt * 12
-      );
-      chassisTiltRef.current.rotation.x = THREE.MathUtils.lerp(
-        chassisTiltRef.current.rotation.x,
-        gameRuntime.rotation.x,
-        dt * 12
-      );
-    }
+      if (chassisTiltRef.current) {
+        chassisTiltRef.current.rotation.z = THREE.MathUtils.lerp(
+          chassisTiltRef.current.rotation.z,
+          gameRuntime.rotation.z,
+          dt * 12
+        );
+        chassisTiltRef.current.rotation.x = THREE.MathUtils.lerp(
+          chassisTiltRef.current.rotation.x,
+          gameRuntime.rotation.x,
+          dt * 12
+        );
+      }
 
-    const steerAngle = -gameRuntime.steering * 0.36;
-    if (frontLeftSteerRef.current) {
-      frontLeftSteerRef.current.rotation.y = steerAngle;
-    }
-    if (frontRightSteerRef.current) {
-      frontRightSteerRef.current.rotation.y = steerAngle;
-    }
+      const steerAngle = -gameRuntime.steering * 0.36;
+      if (frontLeftSteerRef.current) {
+        frontLeftSteerRef.current.rotation.y = steerAngle;
+      }
+      if (frontRightSteerRef.current) {
+        frontRightSteerRef.current.rotation.y = steerAngle;
+      }
 
-    const speedMetersPerSec = gameRuntime.speed / 3.6;
-    wheelAngleRef.current -= (speedMetersPerSec / 0.34) * dt;
-    for (let i = 0; i < wheelSpinRefs.current.length; i++) {
-      const wheel = wheelSpinRefs.current[i];
-      if (wheel) {
-        wheel.rotation.x = wheelAngleRef.current;
+      const speedMetersPerSec = gameRuntime.speed / 3.6;
+      wheelAngleRef.current -= (speedMetersPerSec / 0.34) * dt;
+      for (let i = 0; i < wheelSpinRefs.current.length; i++) {
+        const wheel = wheelSpinRefs.current[i];
+        if (wheel) {
+          wheel.rotation.x = wheelAngleRef.current;
+        }
       }
     }
 
@@ -695,43 +722,50 @@ export function FormulaCar() {
       gameRuntime.activeStageId !== null
         ? STAGES.find((stage) => stage.id === gameRuntime.activeStageId)
         : undefined;
-    const desiredLivery = activeStage ? activeStage.car : DEFAULT_MCLAREN_LIVERY;
+    const desiredLivery = liveryOverride ?? (activeStage ? activeStage.car : DEFAULT_MCLAREN_LIVERY);
 
     targetPrimary.set(desiredLivery.primary);
     targetSecondary.set(desiredLivery.secondary);
     targetAccent.set(desiredLivery.accent);
 
-    const wetClearcoat = gameRuntime.rainIntensity > 0.2 ? 1.0 : 0.92;
-    const wetRoughness = gameRuntime.rainIntensity > 0.2 ? 0.12 : 0.22;
+    const wetClearcoat = realistic ? 1.0 : gameRuntime.rainIntensity > 0.2 ? 1.0 : 0.92;
+    const wetRoughness = realistic ? 0.16 : gameRuntime.rainIntensity > 0.2 ? 0.12 : 0.22;
+    const targetMetalness = realistic ? 0.38 : 0.32;
 
     if (primaryMatRef.current) {
-      primaryMatRef.current.color.lerp(targetPrimary, dt * 4);
+      primaryMatRef.current.color.lerp(targetPrimary, dt * 5);
       primaryMatRef.current.roughness = THREE.MathUtils.lerp(
         primaryMatRef.current.roughness,
         wetRoughness,
         dt * 4
       );
+      primaryMatRef.current.metalness = targetMetalness;
       primaryMatRef.current.clearcoat = wetClearcoat;
     }
 
     if (secondaryMatRef.current) {
-      secondaryMatRef.current.color.lerp(targetSecondary, dt * 4);
+      secondaryMatRef.current.color.lerp(targetSecondary, dt * 5);
       secondaryMatRef.current.roughness = THREE.MathUtils.lerp(
         secondaryMatRef.current.roughness,
         wetRoughness,
         dt * 4
       );
+      secondaryMatRef.current.metalness = targetMetalness;
     }
 
     if (accentMatRef.current) {
-      accentMatRef.current.color.lerp(targetAccent, dt * 4);
+      accentMatRef.current.color.lerp(targetAccent, dt * 5);
     }
 
     if (rearLightRef.current) {
-      const isRain = gameRuntime.rainIntensity > 0.25;
-      const blink = isRain ? (Math.sin(state.clock.elapsedTime * 14) > 0 ? 4.2 : 0.35) : 0.55;
-      const brakeBoost = gameRuntime.brake > 0.1 ? 4.8 : blink;
-      rearLightRef.current.emissiveIntensity = brakeBoost;
+      if (staticPose) {
+        rearLightRef.current.emissiveIntensity = 1.1;
+      } else {
+        const isRain = gameRuntime.rainIntensity > 0.25;
+        const blink = isRain ? (Math.sin(state.clock.elapsedTime * 14) > 0 ? 4.2 : 0.35) : 0.55;
+        const brakeBoost = gameRuntime.brake > 0.1 ? 4.8 : blink;
+        rearLightRef.current.emissiveIntensity = brakeBoost;
+      }
     }
   });
 
@@ -741,6 +775,7 @@ export function FormulaCar() {
         <FormulaChassis
           livery={activeLivery}
           isSennaHelmet
+          realistic={realistic}
           rearLightRef={rearLightRef}
           primaryMatRef={primaryMatRef}
           secondaryMatRef={secondaryMatRef}

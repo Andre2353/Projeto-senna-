@@ -11,6 +11,7 @@ import type {
   GameSettings,
   PersistedProgress,
   RaceResultState,
+  ShowroomAngleZone,
   TransitionBanner,
 } from '../types/game';
 import {
@@ -114,10 +115,15 @@ interface GameStoreState {
   tacticalAlert: string | null;
   raceResult: RaceResultState | null;
   settings: GameSettings;
+  selectedTimelineIndex: number;
+  showroomZone: ShowroomAngleZone;
 
   setLoadProgress: (progress: number) => void;
   markLoaded: () => void;
   setWebglSupported: (supported: boolean) => void;
+  setSelectedTimelineIndex: (index: number) => void;
+  setShowroomZone: (zone: ShowroomAngleZone) => void;
+  returnToTimeline: () => void;
   startExperience: () => void;
   enterStage: (stageId: number) => void;
   restartCurrentStage: () => void;
@@ -154,12 +160,32 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   tacticalAlert: null,
   raceResult: null,
   settings: initialPersisted.settings,
+  selectedTimelineIndex: 0,
+  showroomZone: 'front',
 
   setLoadProgress: (progress) => set({ loadProgress: Math.min(100, Math.max(0, progress)) }),
 
   markLoaded: () => set({ isLoaded: true, loadProgress: 100 }),
 
   setWebglSupported: (supported) => set({ webglSupported: supported }),
+
+  setSelectedTimelineIndex: (index) => set({ selectedTimelineIndex: index }),
+
+  setShowroomZone: (zone) => set({ showroomZone: zone }),
+
+  returnToTimeline: () => {
+    resetForCorridor(0, false);
+    set({
+      mode: 'landing',
+      activeStageId: null,
+      isPaused: false,
+      showSettings: false,
+      raceResult: null,
+      tacticalAlert: null,
+      transitionBanner: null,
+      activeChapterId: null,
+    });
+  },
 
   startExperience: () => {
     resetForCorridor(0, false);

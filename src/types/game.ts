@@ -1,5 +1,26 @@
 export type GameMode = 'landing' | 'corridor' | 'race' | 'open_world' | 'credits';
 
+export type ShowroomAngleZone = 'front' | 'right' | 'rear' | 'left';
+
+export interface TimelineCarSpecs {
+  aeroFront: string;
+  engineChassis: string;
+  rearTraction: string;
+  cockpitDriver: string;
+}
+
+export interface TimelineCarEntry {
+  stageId: number;
+  year: number;
+  eraTitle: string;
+  chassis: string;
+  team: string;
+  circuitLabel: string;
+  summary: string;
+  livery: CarLivery;
+  specs: TimelineCarSpecs;
+}
+
 export type PortalSide = 'left' | 'right';
 
 export type GraphicsQuality = 'high' | 'medium' | 'low';
