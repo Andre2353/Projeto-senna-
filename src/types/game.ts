@@ -164,6 +164,7 @@ export interface GameRuntime {
   nearestMonumentDistance: number;
   compassAngle: number;
   lightningFlash: number;
+  overtakePulseAt: number;
   audioReady: boolean;
   cameraIntroProgress: number;
 }

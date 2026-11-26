@@ -1,7 +1,8 @@
-import { useEffect, useRef } from 'react';
-import { ArrowRight, Compass, Pause } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { ArrowRight, Navigation2, Pause } from 'lucide-react';
 import { CORRIDOR_END_Z, OPEN_WORLD_CHAPTERS, STAGES } from '../../data/sennaData';
 import { useGameStore } from '../../store/useGameStore';
+import { engineAudio } from '../../utils/engineAudio';
 import { gameRuntime } from '../../utils/runtime';
 import { AudioControls } from './AudioControls';
 
@@ -13,8 +14,13 @@ export function TelemetryHUD() {
   const completedStages = useGameStore((state) => state.completedStages);
   const unlockedChapters = useGameStore((state) => state.unlockedChapters);
   const tacticalAlert = useGameStore((state) => state.tacticalAlert);
+  const reducedMotion = useGameStore((state) => state.settings.reducedMotion);
   const togglePause = useGameStore((state) => state.togglePause);
   const enterOpenWorld = useGameStore((state) => state.enterOpenWorld);
+  const enterStage = useGameStore((state) => state.enterStage);
+  const openChapterCard = useGameStore((state) => state.openChapterCard);
+
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   const speedRef = useRef<HTMLSpanElement>(null);
   const gearRef = useRef<HTMLSpanElement>(null);
@@ -23,10 +29,30 @@ export function TelemetryHUD() {
   const overtakeRef = useRef<HTMLSpanElement>(null);
   const compassArrowRef = useRef<HTMLDivElement>(null);
   const compassDistRef = useRef<HTMLSpanElement>(null);
+  const nearbyPortalRef = useRef<HTMLDivElement>(null);
+  const nearbyPortalTextRef = useRef<HTMLSpanElement>(null);
+  const hudFlashRef = useRef<HTMLDivElement>(null);
   const rpmBarRefs = useRef<(HTMLSpanElement | null)[]>([]);
 
   const activeStage =
     activeStageId !== null ? STAGES.find((stage) => stage.id === activeStageId) ?? null : null;
+
+  // 4-second onboarding guide after leaving Landing Screen (dismisses automatically on drive input)
+  useEffect(() => {
+    if (mode !== 'corridor') {
+      setShowOnboarding(false);
+      return;
+    }
+
+    setShowOnboarding(true);
+    const hideTimer = window.setTimeout(() => {
+      setShowOnboarding(false);
+    }, 4000);
+
+    return () => {
+      window.clearTimeout(hideTimer);
+    };
+  }, [mode]);
 
   useEffect(() => {
     if (mode === 'landing' || mode === 'credits') {
@@ -36,6 +62,10 @@ export function TelemetryHUD() {
     let rafId = 0;
 
     const updateTelemetryDom = () => {
+      if (showOnboarding && (gameRuntime.throttle > 0.3 || Math.abs(gameRuntime.steering) > 0.25)) {
+        setShowOnboarding(false);
+      }
+
       if (speedRef.current) {
         speedRef.current.textContent = String(Math.round(Math.abs(gameRuntime.speed))).padStart(
           3,
@@ -88,6 +118,31 @@ export function TelemetryHUD() {
         }
       }
 
+      // Nearby Portal Tactile Cue in Main Corridor (< 60 units ahead)
+      if (mode === 'corridor' && nearbyPortalRef.current && nearbyPortalTextRef.current) {
+        const pz = gameRuntime.position.z;
+        const nearby = STAGES.find((stage) => {
+          const distAhead = pz - stage.portalZ;
+          return distAhead >= -8 && distAhead <= 60;
+        });
+
+        if (nearby) {
+          nearbyPortalRef.current.style.opacity = '1';
+          nearbyPortalTextRef.current.textContent =
+            nearby.portalSide === 'left'
+              ? `← ENTRAR: ${nearby.circuit} ${nearby.year} (OU SIGA RETO)`
+              : `ENTRAR: ${nearby.circuit} ${nearby.year} → (OU SIGA RETO)`;
+        } else {
+          nearbyPortalRef.current.style.opacity = '0';
+        }
+      } else if (nearbyPortalRef.current) {
+        nearbyPortalRef.current.style.opacity = '0';
+      }
+
+      // Overtake Counter + Audio/Visual Juice Pulse
+      const sinceOvertake = performance.now() - gameRuntime.overtakePulseAt;
+      const isPulsing = gameRuntime.overtakePulseAt > 0 && sinceOvertake < 450;
+
       if (overtakeRef.current && mode === 'race' && activeStage) {
         if (activeStage.mechanic === 'defend_lead') {
           const rivalBehind = gameRuntime.opponents.every(
@@ -97,6 +152,14 @@ export function TelemetryHUD() {
         } else {
           overtakeRef.current.textContent = `ULTRAPASSAGENS ${gameRuntime.overtakesCompleted}/${activeStage.targetOvertakes}`;
         }
+        overtakeRef.current.style.color = isPulsing ? '#facc15' : '';
+        overtakeRef.current.style.transform =
+          isPulsing && !reducedMotion ? 'scale(1.08)' : 'scale(1)';
+      }
+
+      if (hudFlashRef.current) {
+        hudFlashRef.current.style.opacity =
+          isPulsing && !reducedMotion ? String(Math.max(0, 1 - sinceOvertake / 450) * 0.85) : '0';
       }
 
       if (mode === 'open_world') {
@@ -108,10 +171,10 @@ export function TelemetryHUD() {
         if (compassDistRef.current) {
           compassDistRef.current.textContent =
             gameRuntime.nearestMonumentId !== null
-              ? `CAP. ${gameRuntime.nearestMonumentId} · ${Math.round(
+              ? `ALVO: CAP. ${gameRuntime.nearestMonumentId} · ${Math.round(
                   gameRuntime.nearestMonumentDistance
                 )}m`
-              : 'TRAJETÓRIA COMPLETA';
+              : 'TRAJETÓRIA COMPLETA (6/6)';
         }
       }
 
@@ -122,7 +185,7 @@ export function TelemetryHUD() {
     return () => {
       window.cancelAnimationFrame(rafId);
     };
-  }, [activeStage, mode]);
+  }, [activeStage, mode, reducedMotion, showOnboarding]);
 
   if (mode === 'landing' || mode === 'credits') {
     return null;
@@ -137,6 +200,12 @@ export function TelemetryHUD() {
 
   return (
     <div className="pointer-events-none fixed inset-0 z-10 box-border p-5">
+      {/* Subtle HUD edge flash on clean overtake */}
+      <div
+        ref={hudFlashRef}
+        className="pointer-events-none fixed inset-0 border-2 border-yellow-400/80 opacity-0 shadow-[inset_0_0_48px_rgba(250,204,21,0.22)] transition-opacity duration-75"
+      />
+
       {/* TOP BAR */}
       <div className="absolute top-5 right-5 left-5 flex items-start justify-between gap-4">
         <div className="flex flex-col gap-2">
@@ -149,7 +218,10 @@ export function TelemetryHUD() {
             </div>
             {mode === 'race' && activeStage && (
               <div className="mt-1 flex items-center gap-3 font-telemetry text-[11px] text-zinc-400">
-                <span ref={overtakeRef}>
+                <span
+                  ref={overtakeRef}
+                  className="inline-block origin-left transition-transform duration-150"
+                >
                   {activeStage.mechanic === 'defend_lead'
                     ? 'POSIÇÃO: P1'
                     : `ULTRAPASSAGENS 0/${activeStage.targetOvertakes}`}
@@ -195,6 +267,31 @@ export function TelemetryHUD() {
             <Pause className="h-3.5 w-3.5" />
             <span>ESC</span>
           </button>
+        </div>
+      </div>
+
+      {/* NEARBY PORTAL TACTILE CUE */}
+      <div
+        ref={nearbyPortalRef}
+        className="pointer-events-none fixed bottom-22 left-1/2 -translate-x-1/2 opacity-0 transition-opacity duration-200"
+      >
+        <div className="border border-yellow-400/80 bg-zinc-950/88 px-5 py-2 font-telemetry text-xs font-bold tracking-[0.18em] text-yellow-400 backdrop-blur-md">
+          <span ref={nearbyPortalTextRef}>ENTRAR NO PORTAL</span>
+        </div>
+      </div>
+
+      {/* 4-SECOND INSTANT ONBOARDING GUIDE */}
+      <div
+        className={`pointer-events-none fixed bottom-22 left-1/2 -translate-x-1/2 transition-opacity duration-500 ${
+          showOnboarding ? 'opacity-100' : 'opacity-0'
+        }`}
+      >
+        <div className="border border-white/20 bg-zinc-950/85 px-6 py-2.5 font-telemetry text-xs tracking-[0.16em] text-slate-50 backdrop-blur-md">
+          <span className="text-yellow-400 font-bold">W</span> ACELERAR
+          <span className="mx-3 text-zinc-600">|</span>
+          <span className="text-yellow-400 font-bold">A / D</span> VIRAR
+          <span className="mx-3 text-zinc-600">|</span>
+          <span className="text-yellow-400 font-bold">ESC</span> MENU
         </div>
       </div>
 
@@ -244,18 +341,21 @@ export function TelemetryHUD() {
           </div>
         </div>
 
-        {/* Bottom Center: 7 Portals Strip OR 6 Chapters + Compass */}
+        {/* Bottom Center: Interactive 7 Portals Bar OR Prominent Open World Compass + Reopenable Chapters */}
         {mode === 'open_world' ? (
-          <div className="flex items-center gap-4 border border-white/15 bg-zinc-950/75 px-4 py-2 backdrop-blur-md">
-            <div className="flex items-center gap-2">
+          <div className="pointer-events-auto flex items-center gap-4 border border-yellow-400/35 bg-zinc-950/85 px-4 py-2 backdrop-blur-md">
+            <div className="flex items-center gap-2.5">
               <div
                 ref={compassArrowRef}
-                className="flex h-6 w-6 items-center justify-center border border-yellow-400/50 text-yellow-400"
+                className="flex h-8 w-8 items-center justify-center border border-yellow-400 bg-yellow-400/15 text-yellow-400"
               >
-                <Compass className="h-3.5 w-3.5" />
+                <Navigation2 className="h-4 w-4 fill-yellow-400" />
               </div>
-              <span ref={compassDistRef} className="font-telemetry text-[11px] text-zinc-200">
-                CAP. 1 · 0m
+              <span
+                ref={compassDistRef}
+                className="font-telemetry text-xs font-bold tracking-wider text-yellow-400"
+              >
+                ALVO: CAP. 1 · 0m
               </span>
             </div>
 
@@ -263,25 +363,33 @@ export function TelemetryHUD() {
               {OPEN_WORLD_CHAPTERS.map((ch) => {
                 const unlocked = unlockedChapters.includes(ch.id);
                 return (
-                  <span
+                  <button
                     key={ch.id}
-                    className={`flex h-5 w-5 items-center justify-center border font-telemetry text-[10px] ${
+                    type="button"
+                    disabled={!unlocked}
+                    onClick={() => openChapterCard(ch.id)}
+                    title={
                       unlocked
-                        ? 'border-yellow-400 bg-yellow-400/20 text-yellow-400'
-                        : 'border-white/15 text-zinc-500'
+                        ? `Reabrir: ${ch.title}`
+                        : `Capítulo ${ch.id} bloqueado — siga a seta`
+                    }
+                    className={`flex h-6 w-6 items-center justify-center border font-telemetry text-[10px] font-semibold transition ${
+                      unlocked
+                        ? 'cursor-pointer border-yellow-400 bg-yellow-400/20 text-yellow-400 hover:bg-yellow-400 hover:text-zinc-950'
+                        : 'cursor-default border-white/15 text-zinc-500'
                     }`}
                   >
                     {ch.id}
-                  </span>
+                  </button>
                 );
               })}
-              <span className="ml-1 font-telemetry text-[11px] text-zinc-400">
+              <span className="ml-1 font-telemetry text-[11px] text-zinc-300">
                 {unlockedChapters.length}/6
               </span>
             </div>
           </div>
         ) : (
-          <div className="flex items-center gap-2 border border-white/15 bg-zinc-950/75 px-4 py-2 backdrop-blur-md">
+          <div className="pointer-events-auto flex items-center gap-1.5 border border-white/15 bg-zinc-950/75 px-3.5 py-2 backdrop-blur-md">
             <span className="mr-1 font-telemetry text-[10px] tracking-[0.2em] text-zinc-400">
               PORTAIS
             </span>
@@ -289,19 +397,27 @@ export function TelemetryHUD() {
               const isDone = completedStages.includes(stage.id);
               const isActive = activeStageId === stage.id;
               return (
-                <div
+                <button
                   key={stage.id}
-                  title={`${stage.circuit} ${stage.year}`}
-                  className={`flex h-6 w-7 items-center justify-center border font-telemetry text-[11px] font-semibold ${
+                  type="button"
+                  onClick={() => {
+                    engineAudio.playPortalEnter();
+                    enterStage(stage.id);
+                  }}
+                  title={`PORTAL 0${stage.id}: ${stage.circuit} ${stage.year} (${stage.car.chassisName}) — Clique para correr`}
+                  className={`group relative flex h-7 w-7 cursor-pointer items-center justify-center border font-telemetry text-[11px] font-semibold transition ${
                     isActive
                       ? 'border-yellow-400 bg-yellow-400 text-zinc-950'
                       : isDone
-                        ? 'border-green-600 bg-green-600/25 text-green-400'
-                        : 'border-white/15 text-zinc-400'
+                        ? 'border-green-600 bg-green-600/25 text-green-400 hover:border-yellow-400'
+                        : 'border-white/20 text-zinc-300 hover:border-yellow-400 hover:text-yellow-400'
                   }`}
                 >
                   {stage.id}
-                </div>
+                  <span className="pointer-events-none absolute -top-9 left-1/2 hidden -translate-x-1/2 whitespace-nowrap border border-white/20 bg-zinc-950 px-2 py-0.5 font-telemetry text-[10px] text-slate-50 group-hover:block">
+                    {stage.circuit} {stage.year}
+                  </span>
+                </button>
               );
             })}
           </div>
@@ -313,7 +429,9 @@ export function TelemetryHUD() {
           <div className="border border-white/15 bg-zinc-950/75 px-3 py-1 font-telemetry text-[10px] tracking-wider text-zinc-400 backdrop-blur-md">
             {mode === 'open_world'
               ? 'WASD / SETAS · ESPAÇO DRIFT · M ÁUDIO · ESC PAUSA'
-              : 'WASD / SETAS · M ÁUDIO · ESC PAUSA'}
+              : mode === 'race'
+                ? 'WASD / SETAS · R REINICIAR · M ÁUDIO · ESC PAUSA'
+                : 'WASD / SETAS · M ÁUDIO · ESC PAUSA'}
           </div>
         </div>
       </div>

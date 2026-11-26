@@ -796,6 +796,7 @@ export function RaceTrack() {
   const handleOvertake = useCallback(
     (spec: OpponentSpec) => {
       engineAudio.playOvertake();
+      gameRuntime.overtakePulseAt = performance.now();
       if (stage?.mechanic === 'four_overtakes') {
         showTimedAlert(
           `ULTRAPASSAGEM ${gameRuntime.overtakesCompleted}/${stage.targetOvertakes}: ${spec.name}`,

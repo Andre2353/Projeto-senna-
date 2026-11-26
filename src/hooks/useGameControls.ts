@@ -43,6 +43,15 @@ export function useGameControls(): void {
         return;
       }
 
+      if (code === 'KeyR') {
+        const state = useGameStore.getState();
+        if (state.mode === 'race' && !state.isPaused) {
+          event.preventDefault();
+          state.restartCurrentStage();
+          return;
+        }
+      }
+
       if (code === 'KeyW' || code === 'ArrowUp') {
         controlInput.forward = true;
       } else if (code === 'KeyS' || code === 'ArrowDown') {

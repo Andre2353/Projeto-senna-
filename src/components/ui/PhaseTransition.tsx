@@ -1,14 +1,32 @@
-import { useEffect } from 'react';
-import { ArrowLeft, CheckCircle2, RotateCcw, Flag } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { ArrowLeft, CheckCircle2, Flag, RotateCcw } from 'lucide-react';
 import { STAGES } from '../../data/sennaData';
 import { useGameStore } from '../../store/useGameStore';
 
 export function PhaseTransition() {
+  const mode = useGameStore((state) => state.mode);
+  const activeStageId = useGameStore((state) => state.activeStageId);
   const transitionBanner = useGameStore((state) => state.transitionBanner);
   const setTransitionBanner = useGameStore((state) => state.setTransitionBanner);
   const raceResult = useGameStore((state) => state.raceResult);
   const restartCurrentStage = useGameStore((state) => state.restartCurrentStage);
   const returnToCorridor = useGameStore((state) => state.returnToCorridor);
+  const [fadeOpacity, setFadeOpacity] = useState(0);
+
+  // Smooth 400ms cinematic fade/blur on mode or stage switch
+  useEffect(() => {
+    if (mode === 'landing') {
+      setFadeOpacity(0);
+      return;
+    }
+    setFadeOpacity(1);
+    const timer = window.setTimeout(() => {
+      setFadeOpacity(0);
+    }, 60);
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [activeStageId, mode]);
 
   useEffect(() => {
     if (!transitionBanner) {
@@ -27,6 +45,13 @@ export function PhaseTransition() {
 
   return (
     <>
+      {/* Cinematic transition veil (400ms smooth fade + blur) */}
+      <div
+        className={`pointer-events-none fixed inset-0 z-40 bg-zinc-950/70 backdrop-blur-md transition-opacity duration-400 ${
+          fadeOpacity > 0 ? 'opacity-100' : 'opacity-0'
+        }`}
+      />
+
       {transitionBanner && !raceResult && (
         <div className="pointer-events-none fixed top-20 left-1/2 z-30 -translate-x-1/2">
           <div className="border border-white/15 bg-zinc-950/85 px-8 py-3.5 text-center backdrop-blur-md">
@@ -113,7 +138,7 @@ export function PhaseTransition() {
                 onClick={restartCurrentStage}
                 className="flex cursor-pointer items-center justify-between border border-white/15 bg-zinc-900/80 px-4 py-2.5 font-telemetry text-xs tracking-[0.14em] text-slate-50 transition hover:border-white/40"
               >
-                <span>TENTAR NOVAMENTE</span>
+                <span>TENTAR NOVAMENTE (R)</span>
                 <RotateCcw className="h-4 w-4 text-zinc-400" />
               </button>
             </div>

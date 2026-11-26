@@ -125,6 +125,7 @@ interface GameStoreState {
   returnToCorridor: (afterStageId?: number | null) => void;
   enterOpenWorld: () => void;
   unlockChapter: (chapterId: number) => void;
+  openChapterCard: (chapterId: number) => void;
   closeChapterCard: () => void;
   openCredits: () => void;
   closeCredits: () => void;
@@ -290,6 +291,13 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       unlockedChapters: nextChapters,
       activeChapterId: chapterId,
     });
+  },
+
+  openChapterCard: (chapterId) => {
+    const state = get();
+    if (state.unlockedChapters.includes(chapterId)) {
+      set({ activeChapterId: chapterId });
+    }
   },
 
   closeChapterCard: () => set({ activeChapterId: null }),

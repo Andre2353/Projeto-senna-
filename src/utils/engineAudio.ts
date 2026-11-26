@@ -37,14 +37,14 @@ export class EngineAudioController {
       masterGain.connect(ctx.destination);
       this.masterGain = masterGain;
 
-      // Engine synth: 2 persistent oscillators -> lowpass filter -> engineGain -> masterGain
+      // Engine synth: 2 persistent oscillators -> warm lowpass filter -> engineGain -> masterGain
       const engineFilter = ctx.createBiquadFilter();
       engineFilter.type = 'lowpass';
-      engineFilter.frequency.value = 320;
-      engineFilter.Q.value = 3.2;
+      engineFilter.frequency.value = 260;
+      engineFilter.Q.value = 1.6;
 
       const engineGain = ctx.createGain();
-      engineGain.gain.value = 0.16;
+      engineGain.gain.value = 0.14;
 
       const oscPrimary = ctx.createOscillator();
       oscPrimary.type = 'sawtooth';
@@ -114,7 +114,7 @@ export class EngineAudioController {
     }
 
     const now = this.ctx.currentTime;
-    const targetMaster = active && !muted ? Math.max(0, Math.min(1, masterVolume)) * 0.45 : 0;
+    const targetMaster = active && !muted ? Math.max(0, Math.min(1, masterVolume)) * 0.34 : 0;
     this.masterGain.gain.setTargetAtTime(targetMaster, now, 0.08);
 
     if (!this.oscPrimary || !this.oscHarmonic || !this.engineFilter || !this.engineGain) {
@@ -124,19 +124,19 @@ export class EngineAudioController {
     const rpmNorm = Math.max(0, Math.min(1, (gameRuntime.rpm - 2800) / 10700));
     const speedNorm = Math.max(0, Math.min(1, Math.abs(gameRuntime.speed) / 330));
 
-    // Heavy low-end lugging timbre when locked in 6th gear (Stage 5)
+    // Warm, full-bodied V10/V12 timbre (never harsh or fatiguing at 100% volume)
     const isSixthLocked = gameRuntime.gearLocked;
-    const baseFreq = isSixthLocked ? 44 + rpmNorm * 115 : 58 + rpmNorm * 175;
-    const harmonicMult = isSixthLocked ? 1.5 : 2.02;
+    const baseFreq = isSixthLocked ? 42 + rpmNorm * 102 : 54 + rpmNorm * 145;
+    const harmonicMult = isSixthLocked ? 1.5 : 1.98;
 
     this.oscPrimary.frequency.setTargetAtTime(baseFreq, now, 0.04);
     this.oscHarmonic.frequency.setTargetAtTime(baseFreq * harmonicMult, now, 0.04);
 
     const filterCutoff = isSixthLocked
-      ? 180 + rpmNorm * 480
-      : 280 + rpmNorm * 1450 + gameRuntime.throttle * 380;
-    this.engineFilter.frequency.setTargetAtTime(filterCutoff, now, 0.05);
-    this.engineGain.gain.setTargetAtTime(0.14 + gameRuntime.throttle * 0.14, now, 0.05);
+      ? 165 + rpmNorm * 380
+      : 220 + rpmNorm * 620 + gameRuntime.throttle * 180;
+    this.engineFilter.frequency.setTargetAtTime(filterCutoff, now, 0.06);
+    this.engineGain.gain.setTargetAtTime(0.12 + gameRuntime.throttle * 0.1, now, 0.06);
 
     if (this.noiseGain && this.noiseFilter) {
       const rainLayer = gameRuntime.rainIntensity * 0.16;

@@ -33,6 +33,7 @@ export const gameRuntime: GameRuntime = {
   nearestMonumentDistance: 0,
   compassAngle: 0,
   lightningFlash: 0,
+  overtakePulseAt: 0,
   audioReady: false,
   cameraIntroProgress: 0,
 };
@@ -84,6 +85,7 @@ export function resetForCorridor(z = 0, keepSpeed = false): void {
   gameRuntime.opponents = [];
   gameRuntime.rainIntensity = 0.12;
   gameRuntime.lightningFlash = 0;
+  gameRuntime.overtakePulseAt = 0;
 }
 
 export function initializeStageRuntime(stage: StageConfig): void {
@@ -102,6 +104,7 @@ export function initializeStageRuntime(stage: StageConfig): void {
   gameRuntime.raceFinished = false;
   gameRuntime.rainIntensity = stage.weather.rain;
   gameRuntime.lightningFlash = 0;
+  gameRuntime.overtakePulseAt = 0;
 
   gameRuntime.opponents = stage.opponents.map((spec) => ({
     id: spec.id,
