@@ -2,6 +2,21 @@ export type GameMode = 'landing' | 'corridor' | 'race' | 'open_world' | 'credits
 
 export type ShowroomAngleZone = 'front' | 'right' | 'rear' | 'left';
 
+export type ExplodedPart = 'engine' | 'wheels' | 'aero' | 'cockpit';
+
+export type EngineArchitecture = 'V6' | 'V8' | 'V10' | 'V12';
+
+export interface TimelineTechnicalSheet {
+  engineType: string;
+  displacement: string;
+  engineArch: EngineArchitecture;
+  valveCoverColor: string;
+  gearbox: string;
+  brakes: string;
+  aero: string;
+  weight: string;
+}
+
 export interface TimelineCarSpecs {
   aeroFront: string;
   engineChassis: string;
@@ -19,6 +34,7 @@ export interface TimelineCarEntry {
   summary: string;
   livery: CarLivery;
   specs: TimelineCarSpecs;
+  technical: TimelineTechnicalSheet;
 }
 
 export type PortalSide = 'left' | 'right';

@@ -10,10 +10,11 @@ import {
 import { useFrame, useThree } from '@react-three/fiber';
 import { Bloom, EffectComposer, Vignette } from '@react-three/postprocessing';
 import * as THREE from 'three';
+import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import { TIMELINE_CARS } from '../../data/sennaData';
 import { useGameStore } from '../../store/useGameStore';
 import type { ShowroomAngleZone } from '../../types/game';
-import { FormulaCar } from './FormulaCar';
+import { ShowroomCar } from './ShowroomCar';
 
 const SHOWROOM_GLB_PATH = '/models/senna-showroom.glb';
 
@@ -42,15 +43,12 @@ function GlbShowroomModel({ url }: { url: string }) {
     const cloned = scene.clone(true);
     const box = new THREE.Box3().setFromObject(cloned);
     const size = new THREE.Vector3();
-    const center = new THREE.Vector3();
     box.getSize(size);
-    box.getCenter(center);
 
     const maxHoriz = Math.max(size.x, size.z, 0.001);
     const scale = 4.8 / maxHoriz;
     cloned.scale.setScalar(scale);
 
-    // Recompute bounds after scaling so tires sit cleanly at y = 0
     const scaledBox = new THREE.Box3().setFromObject(cloned);
     const scaledCenter = new THREE.Vector3();
     scaledBox.getCenter(scaledCenter);
@@ -86,19 +84,24 @@ function resolveAngleZone(cameraPos: THREE.Vector3): ShowroomAngleZone {
   return 'left';
 }
 
+const cockpitTarget = new THREE.Vector3(0, 0.58, -0.15);
+const defaultTarget = new THREE.Vector3(0, 0.42, 0);
+
 export function CarShowroom() {
   const { camera } = useThree();
   const selectedIndex = useGameStore((state) => state.selectedTimelineIndex);
   const quality = useGameStore((state) => state.settings.quality);
+  const explodedCockpit = useGameStore((state) => state.explodedParts.cockpit);
+  const activeInspectedPart = useGameStore((state) => state.activeInspectedPart);
   const setShowroomZone = useGameStore((state) => state.setShowroomZone);
   const selectedCar = TIMELINE_CARS[selectedIndex] ?? TIMELINE_CARS[0]!;
 
   const [hasValidGlb, setHasValidGlb] = useState(false);
+  const controlsRef = useRef<OrbitControlsImpl>(null);
   const lastZoneRef = useRef<ShowroomAngleZone>('front');
   const ringRef = useRef<THREE.MeshBasicMaterial>(null);
   const targetAccent = useMemo(() => new THREE.Color('#facc15'), []);
 
-  // Probe optional drop-in /models/senna-showroom.glb verifying binary glTF magic header ("glTF")
   useEffect(() => {
     let cancelled = false;
 
@@ -115,7 +118,7 @@ export function CarShowroom() {
           setHasValidGlb(true);
         }
       } catch {
-        // Optional GLB not present; keep procedural PBR FormulaCar fallback
+        // Optional GLB not present
       }
     }
 
@@ -125,7 +128,6 @@ export function CarShowroom() {
     };
   }, []);
 
-  // Low, imposing front 3/4 automotive photography telephoto camera (FOV 35°)
   useEffect(() => {
     camera.position.set(-4.5, 1.32, -6.7);
     camera.lookAt(0, 0.42, 0);
@@ -146,6 +148,24 @@ export function CarShowroom() {
       setShowroomZone(currentZone);
     }
 
+    // Smooth technical zoom into Cockpit when Cockpit inspection is active
+    if (controlsRef.current) {
+      const wantCockpitZoom = explodedCockpit && activeInspectedPart === 'cockpit';
+      const goalTarget = wantCockpitZoom ? cockpitTarget : defaultTarget;
+      controlsRef.current.target.lerp(goalTarget, dt * 4.5);
+
+      if (wantCockpitZoom) {
+        const dist = camera.position.distanceTo(controlsRef.current.target);
+        if (dist > 4.6) {
+          const dir = camera.position.clone().sub(controlsRef.current.target).normalize();
+          const goalPos = controlsRef.current.target.clone().addScaledVector(dir, 4.2);
+          goalPos.y = Math.max(1.5, goalPos.y);
+          camera.position.lerp(goalPos, dt * 3.5);
+        }
+      }
+      controlsRef.current.update();
+    }
+
     if (ringRef.current) {
       const accentHex =
         selectedCar.livery.secondary === '#09090B'
@@ -156,16 +176,14 @@ export function CarShowroom() {
     }
   });
 
-  const proceduralFallback = <FormulaCar realistic staticPose liveryOverride={selectedCar.livery} />;
+  const proceduralFallback = <ShowroomCar car={selectedCar} />;
 
   return (
     <>
       <color attach="background" args={['#060608']} />
       <fog attach="fog" args={['#060608', 15, 36]} />
 
-      {/* Photorealistic Automotive Studio Lighting Rig (resolution=1024) */}
       <DreiEnvironment resolution={1024} frames={1}>
-        {/* Long overhead white softbox following car length for continuous chassi reflection */}
         <Lightformer
           form="rect"
           intensity={4.2}
@@ -174,7 +192,6 @@ export function CarShowroom() {
           position={[0, 6.4, 0]}
           rotation={[Math.PI / 2, 0, 0]}
         />
-        {/* Cool white left side bounce sculpting sidepod & tire volume */}
         <Lightformer
           form="rect"
           intensity={2.4}
@@ -183,7 +200,6 @@ export function CarShowroom() {
           position={[-6.8, 2.5, 0]}
           rotation={[0, Math.PI / 2, 0]}
         />
-        {/* Slightly warm right side bounce */}
         <Lightformer
           form="rect"
           intensity={2.4}
@@ -192,7 +208,6 @@ export function CarShowroom() {
           position={[6.8, 2.5, 0]}
           rotation={[0, -Math.PI / 2, 0]}
         />
-        {/* Rear rim-light outlining rear wing & Senna helmet against dark backdrop */}
         <Lightformer
           form="rect"
           intensity={3.4}
@@ -226,7 +241,6 @@ export function CarShowroom() {
         color="#fde68a"
       />
 
-      {/* Real Reflective Studio Floor */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.004, 0]} receiveShadow>
         <circleGeometry args={[34, 64]} />
         <MeshReflectorMaterial
@@ -244,7 +258,6 @@ export function CarShowroom() {
         />
       </mesh>
 
-      {/* Luminous Studio Turntable Rings */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.002, 0]}>
         <ringGeometry args={[3.35, 3.41, 72]} />
         <meshBasicMaterial ref={ringRef} color="#facc15" transparent opacity={0.9} />
@@ -254,7 +267,6 @@ export function CarShowroom() {
         <meshBasicMaterial color="#ffffff" transparent opacity={0.18} />
       </mesh>
 
-      {/* Tire Occlusion Grounding ContactShadows */}
       <ContactShadows
         position={[0, 0.005, 0]}
         opacity={0.85}
@@ -265,7 +277,6 @@ export function CarShowroom() {
         color="#000000"
       />
 
-      {/* Optional Drop-In GLB or Photorealistic Procedural FormulaCar */}
       {hasValidGlb ? (
         <GlbErrorBoundary fallback={proceduralFallback}>
           <Suspense fallback={proceduralFallback}>
@@ -277,11 +288,12 @@ export function CarShowroom() {
       )}
 
       <OrbitControls
+        ref={controlsRef}
         enableZoom
         enablePan={false}
-        autoRotate
+        autoRotate={!explodedCockpit}
         autoRotateSpeed={1.2}
-        minDistance={5.2}
+        minDistance={3.6}
         maxDistance={13.5}
         minPolarAngle={Math.PI / 4}
         maxPolarAngle={Math.PI / 2.15}

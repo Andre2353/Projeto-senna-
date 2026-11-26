@@ -243,6 +243,37 @@ export function createTireTreadTextureSet(): TireTreadTextureSet {
   };
 }
 
+export function createRadiatorFinsTexture(): THREE.CanvasTexture {
+  const size = 128;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+
+  if (ctx) {
+    ctx.fillStyle = '#52525b';
+    ctx.fillRect(0, 0, size, size);
+
+    for (let y = 0; y < size; y += 4) {
+      ctx.fillStyle = y % 8 === 0 ? '#d4d4d8' : '#27272a';
+      ctx.fillRect(0, y, size, 2);
+    }
+
+    ctx.fillStyle = 'rgba(24, 24, 27, 0.55)';
+    for (let x = 16; x < size; x += 24) {
+      ctx.fillRect(x, 0, 3, size);
+    }
+  }
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(2, 2);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.needsUpdate = true;
+  return tex;
+}
+
 export function createStartingGridTexture(): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
   canvas.width = 512;

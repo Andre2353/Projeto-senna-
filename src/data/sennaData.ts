@@ -543,11 +543,21 @@ export const TIMELINE_CARS: readonly TimelineCarEntry[] = [
       aeroFront:
         'Asa dianteira biplano de alta carga aerodinâmica para máxima aderência em curvas lentas de rua e piso encharcado.',
       engineChassis:
-        'Monocoque em fibra de carbono e Kevlar projetado por Rory Byrne. Motor Hart 415T 1.5L 4 cilindros Turbo (~600 cv) e câmbio manual de 5 marchas.',
+        'Monocoque em fibra de carbono e Kevlar projetado por Rory Byrne. Motor Hart 415T 1.5L Turbo (~600 cv) e câmbio manual de 5 marchas.',
       rearTraction:
         'Asa traseira dupla com endplates altos e difusor Venturi trabalhando junto aos pneus slick/chuva para estabilizar a traseira arisca do turbo.',
       cockpitDriver:
         'Cockpit aberto estreito, alavanca de câmbio mecânica à direita e capacete amarelo com faixas verde e azul já consolidado como marca registrada.',
+    },
+    technical: {
+      engineType: 'Hart 415T Turbo',
+      displacement: '1.496 cc · 600 cv @ 10.500 RPM',
+      engineArch: 'V6',
+      valveCoverColor: '#3f3f46',
+      gearbox: 'Hewland / Toleman Manual 5 marchas',
+      brakes: 'Discos ventilados com pinças AP Racing',
+      aero: 'Asas biplano alta carga · Assoalho plano',
+      weight: '540 kg',
     },
   },
   {
@@ -570,6 +580,16 @@ export const TIMELINE_CARS: readonly TimelineCarEntry[] = [
       cockpitDriver:
         'Posição de pilotagem recuada, volante de três raios em camurça e resposta imediata de pedal para domar o lag do biturbo francês.',
     },
+    technical: {
+      engineType: 'Renault Gordini EF4B V6 Biturbo',
+      displacement: '1.492 cc · 780–950 cv @ 11.500 RPM',
+      engineArch: 'V6',
+      valveCoverColor: '#eab308',
+      gearbox: 'Lotus / Hewland Manual 5 marchas',
+      brakes: 'Discos de carbono Brembo / AP',
+      aero: 'Sidepods undercut + defletores de fluxo',
+      weight: '540 kg',
+    },
   },
   {
     stageId: 3,
@@ -590,6 +610,16 @@ export const TIMELINE_CARS: readonly TimelineCarEntry[] = [
         'Fluxo traseiro limpo sobre a tampa do motor em perfil baixo, maximizando a eficiência do difusor Venturi e da asa traseira biplano.',
       cockpitDriver:
         'Piloto praticamente deitado no monocoque ultrabaixo; proteção frontal reduzida e viseira escura focada nos S de Suzuka.',
+    },
+    technical: {
+      engineType: 'Honda RA168E V6 Biturbo (2.5 bar)',
+      displacement: '1.494 cc · ~685 cv @ 12.500 RPM',
+      engineArch: 'V6',
+      valveCoverColor: '#dc2626',
+      gearbox: 'McLaren / Weismann Transversal 6 marchas',
+      brakes: 'Discos de carbono ventilados SEP/Brembo',
+      aero: 'Monocoque ultrabaixo · Difusor Venturi',
+      weight: '540 kg',
     },
   },
   {
@@ -612,6 +642,16 @@ export const TIMELINE_CARS: readonly TimelineCarEntry[] = [
       cockpitDriver:
         'Tomada de ar superior elevada acima do santo-antônio alimentando o V10 aspirado logo atrás do capacete amarelo.',
     },
+    technical: {
+      engineType: 'Honda RA100E V10 72° Aspirado',
+      displacement: '3.493 cc · ~690 cv @ 13.000 RPM',
+      engineArch: 'V10',
+      valveCoverColor: '#dc2626',
+      gearbox: 'McLaren Transversal Manual 6 marchas',
+      brakes: 'Carbono-carbono Hitco / Brembo 4 pistões',
+      aero: 'Traseira coca-cola + asas de média/alta carga',
+      weight: '505 kg',
+    },
   },
   {
     stageId: 5,
@@ -632,6 +672,16 @@ export const TIMELINE_CARS: readonly TimelineCarEntry[] = [
         'Conjunto traseiro reforçado para acomodar o longo bloco V12 e entregar tração progressiva na subida da Junção em Interlagos.',
       cockpitDriver:
         'Último carro campeão da F1 com câmbio manual em H — exigiu força física extrema de Senna ao travar na 6ª marcha no Brasil.',
+    },
+    technical: {
+      engineType: 'Honda RA121E V12 60° Aspirado',
+      displacement: '3.497 cc · ~725 cv @ 13.800 RPM',
+      engineArch: 'V12',
+      valveCoverColor: '#dc2626',
+      gearbox: 'McLaren Manual em H 6 marchas',
+      brakes: 'Carbono-carbono Carbone Industrie / Brembo',
+      aero: 'Bico fino · Sidepods alongados para o V12',
+      weight: '505 kg',
     },
   },
   {
@@ -654,6 +704,16 @@ export const TIMELINE_CARS: readonly TimelineCarEntry[] = [
       cockpitDriver:
         'Volante equipado com comandos eletrônicos e borboletas de troca rápida, mantendo as duas mãos no volante entre os muros de Mônaco.',
     },
+    technical: {
+      engineType: 'Honda RA122E/B V12 75° Aspirado',
+      displacement: '3.498 cc · ~750 cv @ 14.000 RPM',
+      engineArch: 'V12',
+      valveCoverColor: '#dc2626',
+      gearbox: 'McLaren Semiautomático 6 marchas (borboletas)',
+      brakes: 'Carbono-carbono Brembo de alta resposta',
+      aero: 'Pacote Monte Carlo · Máximo downforce',
+      weight: '505 kg',
+    },
   },
   {
     stageId: 7,
@@ -674,6 +734,16 @@ export const TIMELINE_CARS: readonly TimelineCarEntry[] = [
         'Asa traseira compacta e difusor refinado trabalhando com a altura dinâmica controlada eletronicamente no asfalto encharcado.',
       cockpitDriver:
         'Cockpit equipado com telemetria avançada e leitura de pista impecável sob spray intenso, permitindo linhas externas impossíveis.',
+    },
+    technical: {
+      engineType: 'Ford Cosworth HBD7 V8 75°',
+      displacement: '3.494 cc · ~680 cv @ 13.000 RPM',
+      engineArch: 'V8',
+      valveCoverColor: '#1e3a8a',
+      gearbox: 'McLaren Semiautomático 6 marchas',
+      brakes: 'Carbono-carbono + controle eletrônico',
+      aero: 'Bico elevado · Suspensão ativa eletrônica',
+      weight: '505 kg',
     },
   },
 ];
