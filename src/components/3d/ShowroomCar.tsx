@@ -206,22 +206,35 @@ function VEngineAssembly({
         </group>
       ))}
 
-      {/* Central Fuel Rail & Plenum Spine */}
+      {/* Central Fuel Rail & Braided Fuel Feed Lines */}
       <mesh position={[0, 0.47, 0.72]} rotation={[Math.PI / 2, 0, 0]}>
         <cylinderGeometry args={[0.025, 0.025, blockLength * 0.85, 10]} />
         <meshStandardMaterial color="#dc2626" roughness={0.35} metalness={0.7} />
       </mesh>
+      {([-1, 1] as const).map((side) => (
+        <mesh
+          key={`fuel-line-${side}`}
+          position={[side * 0.08, 0.45, 0.48]}
+          rotation={[0.25, 0, side * 0.65]}
+          material={exhaustMat}
+        >
+          <cylinderGeometry args={[0.009, 0.009, 0.24, 8]} />
+        </mesh>
+      ))}
 
       {/* Curved Burnt-Titanium Tubular Exhaust Manifolds */}
       <mesh geometry={exhaustLeftGeo} castShadow material={exhaustMat} />
       <mesh geometry={exhaustRightGeo} castShadow material={exhaustMat} />
 
       {/* Longitudinal Gearbox Housing + Differential + Rear Crash Structure */}
-      <mesh position={[0, 0.25, 1.48]} castShadow material={aluminumMat}>
-        <boxGeometry args={[0.24, 0.2, 0.62]} />
+      <mesh position={[0, 0.25, 1.38]} castShadow material={aluminumMat}>
+        <boxGeometry args={[0.24, 0.2, 0.54]} />
       </mesh>
-      <mesh position={[0, 0.26, 1.88]} castShadow material={carbonMat}>
-        <boxGeometry args={[0.16, 0.16, 0.38]} />
+      <mesh position={[0, 0.25, 1.66]} castShadow material={aluminumMat}>
+        <cylinderGeometry args={[0.11, 0.11, 0.28, 14]} />
+      </mesh>
+      <mesh position={[0, 0.26, 1.9]} castShadow material={carbonMat}>
+        <boxGeometry args={[0.16, 0.16, 0.36]} />
       </mesh>
       {/* Rear Inboard Push-rod Damper Cylinders */}
       {([-0.08, 0.08] as const).map((dx) => (
@@ -455,6 +468,11 @@ export function ShowroomCar({ car }: ShowroomCarProps) {
     tireTreadMat,
     treadSet,
   ]);
+
+  useEffect(() => {
+    rimMat.emissive.set(hoveredPart === 'wheels' ? '#facc15' : '#000000');
+    rimMat.emissiveIntensity = hoveredPart === 'wheels' ? 0.18 : 0;
+  }, [hoveredPart, rimMat]);
 
   useEffect(() => {
     return () => {

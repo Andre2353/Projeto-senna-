@@ -86,6 +86,8 @@ function resolveAngleZone(cameraPos: THREE.Vector3): ShowroomAngleZone {
 
 const cockpitTarget = new THREE.Vector3(0, 0.58, -0.15);
 const defaultTarget = new THREE.Vector3(0, 0.42, 0);
+const zoomDirScratch = new THREE.Vector3();
+const zoomPosScratch = new THREE.Vector3();
 
 export function CarShowroom() {
   const { camera } = useThree();
@@ -157,10 +159,12 @@ export function CarShowroom() {
       if (wantCockpitZoom) {
         const dist = camera.position.distanceTo(controlsRef.current.target);
         if (dist > 4.6) {
-          const dir = camera.position.clone().sub(controlsRef.current.target).normalize();
-          const goalPos = controlsRef.current.target.clone().addScaledVector(dir, 4.2);
-          goalPos.y = Math.max(1.5, goalPos.y);
-          camera.position.lerp(goalPos, dt * 3.5);
+          zoomDirScratch.subVectors(camera.position, controlsRef.current.target).normalize();
+          zoomPosScratch
+            .copy(controlsRef.current.target)
+            .addScaledVector(zoomDirScratch, 4.2);
+          zoomPosScratch.y = Math.max(1.5, zoomPosScratch.y);
+          camera.position.lerp(zoomPosScratch, dt * 3.5);
         }
       }
       controlsRef.current.update();
