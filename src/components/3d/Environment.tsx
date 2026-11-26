@@ -93,14 +93,14 @@ export function Environment() {
         1,
         Math.max(0, Math.abs(gameRuntime.position.z) / Math.abs(CORRIDOR_END_Z))
       );
-      desiredTop = progress > 0.7 ? '#1e3a8a' : '#0f172a';
-      desiredMid = progress > 0.7 ? '#6d28d9' : '#1e293b';
-      desiredHorizon = progress > 0.7 ? '#fb923c' : '#d97706';
-      desiredFog = progress > 0.7 ? '#b45309' : '#1c1917';
-      fogNear = 95;
-      fogFar = 640;
+      desiredTop = progress > 0.7 ? '#1e3a8a' : '#0369a1';
+      desiredMid = progress > 0.7 ? '#6d28d9' : '#38bdf8';
+      desiredHorizon = progress > 0.7 ? '#fb923c' : '#fde68a';
+      desiredFog = progress > 0.7 ? '#d97706' : '#bae6fd';
+      fogNear = 110;
+      fogFar = 720;
       sunVisible = true;
-      sunHex = '#facc15';
+      sunHex = '#fef08a';
     }
 
     targetTop.set(desiredTop);

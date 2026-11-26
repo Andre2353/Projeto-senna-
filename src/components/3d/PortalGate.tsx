@@ -28,23 +28,24 @@ function createPortalSignTexture(stage: StageConfig, completed: boolean): THREE.
     ctx.strokeRect(8, 8, canvas.width - 16, canvas.height - 16);
 
     ctx.fillStyle = completed ? '#16a34a' : '#facc15';
-    ctx.font = 'bold 28px monospace';
+    ctx.font = 'bold 26px monospace';
     ctx.fillText(
-      `PORTAL 0${stage.id} // ${completed ? 'CONCLUÍDO' : 'DISPONÍVEL'}`,
-      28,
-      54
+      completed ? `PORTAL 0${stage.id} // ✓ CONCLUÍDA` : `PORTAL 0${stage.id} // CORRER AGORA`,
+      26,
+      52
     );
 
     ctx.fillStyle = '#f8fafc';
     ctx.font = 'bold 46px sans-serif';
-    ctx.fillText(`${stage.circuit} ${stage.year}`, 28, 118);
+    ctx.fillText(`${stage.circuit} ${stage.year}`, 26, 118);
 
     ctx.fillStyle = '#a1a1aa';
     ctx.font = '600 22px monospace';
-    ctx.fillText(`${stage.car.teamName.toUpperCase()} · ${stage.car.chassisName}`, 28, 160);
+    ctx.fillText(`${stage.car.teamName.toUpperCase()} · ${stage.car.chassisName}`, 26, 160);
   }
 
   const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
   texture.needsUpdate = true;
   return texture;
 }
@@ -52,11 +53,12 @@ function createPortalSignTexture(stage: StageConfig, completed: boolean): THREE.
 export function PortalGate({ stage, completed }: PortalGateProps) {
   const enterStage = useGameStore((state) => state.enterStage);
   const portalFieldRef = useRef<THREE.MeshBasicMaterial>(null);
+  const statusLedRef = useRef<THREE.MeshStandardMaterial>(null);
   const triggeredRef = useRef(false);
 
   const isLeft = stage.portalSide === 'left';
   const sideSign = isLeft ? -1 : 1;
-  const bayCenterX = sideSign * 20.2;
+  const bayCenterX = sideSign * 20.5;
   const minHitX = isLeft ? -26.5 : CORRIDOR_HALF_WIDTH + 0.5;
   const maxHitX = isLeft ? -(CORRIDOR_HALF_WIDTH + 0.5) : 26.5;
 
@@ -73,9 +75,12 @@ export function PortalGate({ stage, completed }: PortalGateProps) {
   }, [signTexture]);
 
   useFrame((state) => {
+    const pulse = Math.sin(state.clock.elapsedTime * 3.8 + stage.id);
     if (portalFieldRef.current) {
-      portalFieldRef.current.opacity =
-        0.26 + Math.sin(state.clock.elapsedTime * 3.5 + stage.id) * 0.08;
+      portalFieldRef.current.opacity = completed ? 0.18 : 0.24 + pulse * 0.08;
+    }
+    if (statusLedRef.current) {
+      statusLedRef.current.emissiveIntensity = completed ? 1.8 : 2.2 + pulse * 1.1;
     }
 
     if (triggeredRef.current || gameRuntime.activeStageId !== null) {
@@ -103,25 +108,35 @@ export function PortalGate({ stage, completed }: PortalGateProps) {
 
   return (
     <group position={[0, 0, stage.portalZ]}>
-      {/* Lateral access bay asphalt (40m long so adjacent 120m portals never overlap) */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[sideSign * 20.5, 0.005, 0]} receiveShadow>
-        <planeGeometry args={[14, 40]} />
-        <meshStandardMaterial color="#1f2937" roughness={0.72} metalness={0.18} />
+      {/* Lateral Deceleration & Circuit Exit Lane Asphalt */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[sideSign * 20.6, 0.005, 8]} receiveShadow>
+        <planeGeometry args={[14.5, 62]} />
+        <meshStandardMaterial color="#1f2937" roughness={0.76} metalness={0.14} />
       </mesh>
 
-      {/* Approach guide chevrons */}
-      {[-14, -8, -2].map((offsetZ, idx) => (
+      {/* Painted Hatched Entry Stripes & Directional Exit Chevrons */}
+      {[-12, -4, 4, 12, 20, 28].map((zOff, idx) => (
+        <mesh
+          key={`stripe-${idx}`}
+          rotation={[-Math.PI / 2, 0, sideSign * -0.52]}
+          position={[sideSign * 14.2, 0.015, zOff]}
+        >
+          <planeGeometry args={[2.2, 0.55]} />
+          <meshBasicMaterial color="#f8fafc" transparent opacity={0.78} />
+        </mesh>
+      ))}
+      {[-22, -14, -6].map((offsetZ, idx) => (
         <mesh
           key={idx}
           rotation={[-Math.PI / 2, 0, sideSign * -0.45]}
-          position={[sideSign * (13.2 + idx * 2.1), 0.018, -offsetZ]}
+          position={[sideSign * (13.6 + idx * 2.1), 0.018, -offsetZ]}
         >
-          <planeGeometry args={[2.4, 0.7]} />
-          <meshBasicMaterial color={accentHex} transparent opacity={0.88} />
+          <planeGeometry args={[2.5, 0.72]} />
+          <meshBasicMaterial color={accentHex} transparent opacity={0.92} />
         </mesh>
       ))}
 
-      {/* Monumental Portal Frame */}
+      {/* Architectural Circuit Portal Gantry */}
       <group position={[bayCenterX, 0, 0]}>
         <mesh position={[-5.4, 4.4, 0]} castShadow>
           <boxGeometry args={[1.1, 8.8, 1.4]} />
@@ -132,17 +147,21 @@ export function PortalGate({ stage, completed }: PortalGateProps) {
           <meshStandardMaterial color="#18181b" roughness={0.45} metalness={0.55} />
         </mesh>
 
-        <mesh position={[-4.8, 4.4, 0.55]}>
-          <boxGeometry args={[0.18, 8.2, 0.18]} />
-          <meshStandardMaterial color={accentHex} emissive={accentHex} emissiveIntensity={2.4} />
-        </mesh>
-        <mesh position={[4.8, 4.4, 0.55]}>
-          <boxGeometry args={[0.18, 8.2, 0.18]} />
-          <meshStandardMaterial color={accentHex} emissive={accentHex} emissiveIntensity={2.4} />
-        </mesh>
+        {/* Status LED Pillars */}
+        {([-4.8, 4.8] as const).map((lx) => (
+          <mesh key={lx} position={[lx, 4.4, 0.55]}>
+            <boxGeometry args={[0.2, 8.2, 0.2]} />
+            <meshStandardMaterial
+              ref={lx > 0 ? statusLedRef : undefined}
+              color={accentHex}
+              emissive={accentHex}
+              emissiveIntensity={2.4}
+            />
+          </mesh>
+        ))}
 
         <mesh position={[0, 8.8, 0]} castShadow>
-          <boxGeometry args={[12.2, 1.35, 1.6]} />
+          <boxGeometry args={[12.4, 1.4, 1.65]} />
           <meshStandardMaterial color="#09090b" roughness={0.4} metalness={0.6} />
         </mesh>
 
@@ -152,13 +171,13 @@ export function PortalGate({ stage, completed }: PortalGateProps) {
             ref={portalFieldRef}
             color={accentHex}
             transparent
-            opacity={0.28}
+            opacity={0.26}
             side={THREE.DoubleSide}
           />
         </mesh>
 
-        <mesh position={[0, 6.9, 0.85]}>
-          <planeGeometry args={[8.6, 3.2]} />
+        <mesh position={[0, 7.0, 0.88]}>
+          <planeGeometry args={[8.8, 3.3]} />
           <meshBasicMaterial map={signTexture} />
         </mesh>
       </group>

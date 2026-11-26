@@ -79,6 +79,15 @@ export function createAsphaltTextureSet(
     cCtx.fillStyle = lineGrad;
     cCtx.fillRect(0, 0, size, size);
 
+    // Crisp white track edge stripes & subtle braking skid marks
+    cCtx.fillStyle = 'rgba(248, 250, 252, 0.72)';
+    cCtx.fillRect(14, 0, 8, size);
+    cCtx.fillRect(size - 22, 0, 8, size);
+    cCtx.fillStyle = 'rgba(0, 0, 0, 0.22)';
+    for (let s = 0; s < 6; s++) {
+      cCtx.fillRect(160 + (s % 2) * 165, s * 86 + 10, 12, 42);
+    }
+
     rCtx.fillStyle = wet ? '#888888' : '#dcdcdc';
     rCtx.fillRect(0, 0, size, size);
 
@@ -287,11 +296,19 @@ export function createStartingGridTexture(): THREE.CanvasTexture {
 
   if (ctx) {
     ctx.clearRect(0, 0, 512, 512);
-    ctx.strokeStyle = 'rgba(248, 250, 252, 0.82)';
-    ctx.lineWidth = 8;
 
-    ctx.fillStyle = 'rgba(248, 250, 252, 0.88)';
-    ctx.fillRect(20, 42, 472, 10);
+    // Checkered start/finish line across top
+    const sq = 16;
+    for (let y = 16; y < 48; y += sq) {
+      for (let x = 24; x < 488; x += sq) {
+        const isWhite = (Math.floor(x / sq) + Math.floor(y / sq)) % 2 === 0;
+        ctx.fillStyle = isWhite ? 'rgba(248, 250, 252, 0.92)' : 'rgba(9, 9, 11, 0.92)';
+        ctx.fillRect(x, y, sq, sq);
+      }
+    }
+
+    ctx.strokeStyle = 'rgba(248, 250, 252, 0.85)';
+    ctx.lineWidth = 7;
 
     const slots = [
       { x: 110, y: 95 },
@@ -308,6 +325,12 @@ export function createStartingGridTexture(): THREE.CanvasTexture {
       ctx.stroke();
     }
 
+    // Dashed pit exit white line on right side
+    ctx.fillStyle = 'rgba(248, 250, 252, 0.78)';
+    for (let dy = 60; dy < 490; dy += 44) {
+      ctx.fillRect(468, dy, 8, 24);
+    }
+
     ctx.fillStyle = 'rgba(9, 9, 11, 0.45)';
     ctx.fillRect(122, 110, 18, 120);
     ctx.fillRect(182, 110, 18, 120);
@@ -317,8 +340,33 @@ export function createStartingGridTexture(): THREE.CanvasTexture {
 
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 8;
   tex.needsUpdate = true;
   return tex;
+}
+
+export function createGravelTexture(repeatX = 4, repeatY = 48): THREE.CanvasTexture {
+  const size = 256;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+
+  if (ctx) {
+    ctx.fillStyle = '#a8a29e';
+    ctx.fillRect(0, 0, size, size);
+
+    for (let i = 0; i < 4200; i++) {
+      const x = (i * 137 + (i % 13) * 19) % size;
+      const y = (i * 223 + (i % 17) * 23) % size;
+      const s = i % 4 === 0 ? 3 : 2;
+      ctx.fillStyle =
+        i % 3 === 0 ? '#d6d3d1' : i % 3 === 1 ? '#78716c' : '#c2b8a3';
+      ctx.fillRect(x, y, s, s);
+    }
+  }
+
+  return configureRepeatingTexture(canvas, repeatX, repeatY, true);
 }
 
 export function createTireSidewallTexture(): THREE.CanvasTexture {
