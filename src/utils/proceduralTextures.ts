@@ -12,6 +12,17 @@ export interface GrassTextureSet {
   bumpMap: THREE.CanvasTexture;
 }
 
+export interface CarbonTextureSet {
+  map: THREE.CanvasTexture;
+  bumpMap: THREE.CanvasTexture;
+  roughnessMap: THREE.CanvasTexture;
+}
+
+export interface TireTreadTextureSet {
+  map: THREE.CanvasTexture;
+  bumpMap: THREE.CanvasTexture;
+}
+
 function configureRepeatingTexture(
   canvas: HTMLCanvasElement,
   repeatX: number,
@@ -35,19 +46,16 @@ export function createAsphaltTextureSet(
 ): AsphaltTextureSet {
   const size = 512;
 
-  // Color map: aggregate grain + dark racing line rubber wear + subtle seams
   const colorCanvas = document.createElement('canvas');
   colorCanvas.width = size;
   colorCanvas.height = size;
   const cCtx = colorCanvas.getContext('2d');
 
-  // Roughness map: dry grain vs glossy rain puddles
   const roughCanvas = document.createElement('canvas');
   roughCanvas.width = size;
   roughCanvas.height = size;
   const rCtx = roughCanvas.getContext('2d');
 
-  // Bump map: aggregate micro-relief
   const bumpCanvas = document.createElement('canvas');
   bumpCanvas.width = size;
   bumpCanvas.height = size;
@@ -57,7 +65,6 @@ export function createAsphaltTextureSet(
     cCtx.fillStyle = wet ? '#14171f' : '#1e2026';
     cCtx.fillRect(0, 0, size, size);
 
-    // Racing line rubber darkening in the center tracks
     const lineGrad = cCtx.createLinearGradient(0, 0, size, 0);
     lineGrad.addColorStop(0, 'rgba(0,0,0,0)');
     lineGrad.addColorStop(0.28, 'rgba(5,5,8,0.34)');
@@ -67,15 +74,12 @@ export function createAsphaltTextureSet(
     cCtx.fillStyle = lineGrad;
     cCtx.fillRect(0, 0, size, size);
 
-    // Roughness base
     rCtx.fillStyle = wet ? '#888888' : '#dcdcdc';
     rCtx.fillRect(0, 0, size, size);
 
-    // Bump base
     bCtx.fillStyle = '#808080';
     bCtx.fillRect(0, 0, size, size);
 
-    // Aggregate speckle noise
     for (let i = 0; i < 6500; i++) {
       const x = (i * 173 + (i % 13) * 31) % size;
       const y = (i * 257 + (i % 19) * 17) % size;
@@ -90,7 +94,6 @@ export function createAsphaltTextureSet(
       bCtx.fillRect(x, y, w, w);
     }
 
-    // Wet puddles (low roughness patches = mirror reflections)
     if (wet) {
       for (let p = 0; p < 16; p++) {
         const px = ((p * 197 + 43) % (size - 80)) + 40;
@@ -159,6 +162,87 @@ export function createGrassTextureSet(repeatX = 48, repeatY = 48): GrassTextureS
   };
 }
 
+export function createCarbonFiberTextureSet(repeatX = 8, repeatY = 8): CarbonTextureSet {
+  const size = 128;
+  const colorCanvas = document.createElement('canvas');
+  colorCanvas.width = size;
+  colorCanvas.height = size;
+  const cCtx = colorCanvas.getContext('2d');
+
+  const bumpCanvas = document.createElement('canvas');
+  bumpCanvas.width = size;
+  bumpCanvas.height = size;
+  const bCtx = bumpCanvas.getContext('2d');
+
+  const roughCanvas = document.createElement('canvas');
+  roughCanvas.width = size;
+  roughCanvas.height = size;
+  const rCtx = roughCanvas.getContext('2d');
+
+  if (cCtx && bCtx && rCtx) {
+    const cell = 8;
+    for (let y = 0; y < size; y += cell) {
+      for (let x = 0; x < size; x += cell) {
+        const step = ((x / cell + y / cell) % 4 + 4) % 4;
+        const isWarp = step < 2;
+        cCtx.fillStyle = isWarp ? '#121216' : '#24242b';
+        cCtx.fillRect(x, y, cell, cell);
+        cCtx.fillStyle = isWarp ? '#1b1b21' : '#16161b';
+        cCtx.fillRect(x + 1, y + 1, cell - 2, cell - 2);
+
+        bCtx.fillStyle = isWarp ? '#b4b4b4' : '#525252';
+        bCtx.fillRect(x, y, cell, cell);
+
+        rCtx.fillStyle = isWarp ? '#484848' : '#787878';
+        rCtx.fillRect(x, y, cell, cell);
+      }
+    }
+  }
+
+  return {
+    map: configureRepeatingTexture(colorCanvas, repeatX, repeatY, true),
+    bumpMap: configureRepeatingTexture(bumpCanvas, repeatX, repeatY, false),
+    roughnessMap: configureRepeatingTexture(roughCanvas, repeatX, repeatY, false),
+  };
+}
+
+export function createTireTreadTextureSet(): TireTreadTextureSet {
+  const size = 256;
+  const colorCanvas = document.createElement('canvas');
+  colorCanvas.width = size;
+  colorCanvas.height = size;
+  const cCtx = colorCanvas.getContext('2d');
+
+  const bumpCanvas = document.createElement('canvas');
+  bumpCanvas.width = size;
+  bumpCanvas.height = size;
+  const bCtx = bumpCanvas.getContext('2d');
+
+  if (cCtx && bCtx) {
+    cCtx.fillStyle = '#121215';
+    cCtx.fillRect(0, 0, size, size);
+    bCtx.fillStyle = '#808080';
+    bCtx.fillRect(0, 0, size, size);
+
+    for (let i = 0; i < 3600; i++) {
+      const x = (i * 113) % size;
+      const y = (i * 199) % size;
+      cCtx.fillStyle = i % 2 === 0 ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.18)';
+      cCtx.fillRect(x, y, 2, 2);
+      bCtx.fillStyle = i % 2 === 0 ? '#989898' : '#646464';
+      bCtx.fillRect(x, y, 2, 2);
+    }
+
+    cCtx.fillStyle = 'rgba(255, 255, 255, 0.04)';
+    cCtx.fillRect(126, 0, 4, size);
+  }
+
+  return {
+    map: configureRepeatingTexture(colorCanvas, 4, 2, true),
+    bumpMap: configureRepeatingTexture(bumpCanvas, 4, 2, false),
+  };
+}
+
 export function createStartingGridTexture(): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
   canvas.width = 512;
@@ -170,7 +254,6 @@ export function createStartingGridTexture(): THREE.CanvasTexture {
     ctx.strokeStyle = 'rgba(248, 250, 252, 0.82)';
     ctx.lineWidth = 8;
 
-    // 4 staggered starting grid boxes + start line
     ctx.fillStyle = 'rgba(248, 250, 252, 0.88)';
     ctx.fillRect(20, 42, 472, 10);
 
@@ -189,7 +272,6 @@ export function createStartingGridTexture(): THREE.CanvasTexture {
       ctx.stroke();
     }
 
-    // Rubber launch skid marks
     ctx.fillStyle = 'rgba(9, 9, 11, 0.45)';
     ctx.fillRect(122, 110, 18, 120);
     ctx.fillRect(182, 110, 18, 120);
@@ -214,14 +296,12 @@ export function createTireSidewallTexture(): THREE.CanvasTexture {
     ctx.fillStyle = '#141417';
     ctx.fillRect(0, 0, size, size);
 
-    // Subtle matte sidewall ring
     ctx.strokeStyle = '#27272a';
     ctx.lineWidth = 10;
     ctx.beginPath();
     ctx.arc(128, 128, 108, 0, Math.PI * 2);
     ctx.stroke();
 
-    // Classic 80s/90s Goodyear-style yellow & white sidewall arcs
     ctx.strokeStyle = '#facc15';
     ctx.lineWidth = 10;
     ctx.beginPath();
@@ -248,11 +328,9 @@ export function createSennaHelmetTexture(): THREE.CanvasTexture {
   const ctx = canvas.getContext('2d');
 
   if (ctx) {
-    // Iconic vibrant Senna yellow shell
     ctx.fillStyle = '#FACC15';
     ctx.fillRect(0, 0, 512, 256);
 
-    // Classic green & dark navy horizontal wrap-around bands
     ctx.fillStyle = '#16A34A';
     ctx.fillRect(0, 118, 512, 22);
 
@@ -265,7 +343,6 @@ export function createSennaHelmetTexture(): THREE.CanvasTexture {
     ctx.fillStyle = '#16A34A';
     ctx.fillRect(0, 162, 512, 10);
 
-    // Subtle top crown highlight stripe
     ctx.fillStyle = '#1D4ED8';
     ctx.fillRect(240, 22, 32, 86);
   }
@@ -290,7 +367,6 @@ export function createCarNumberPlateTexture(livery: CarLivery): THREE.CanvasText
     ctx.fillRect(0, 0, 256, 44);
     ctx.fillRect(0, 212, 256, 44);
 
-    // Crisp racing number roundel
     ctx.fillStyle = '#FFFFFF';
     ctx.beginPath();
     ctx.arc(128, 128, 72, 0, Math.PI * 2);

@@ -3,7 +3,7 @@ import { Canvas, type RootState, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { STAGES } from '../../data/sennaData';
 import { useGameStore } from '../../store/useGameStore';
-import { detectWebGLSupport, getQualityProfile } from '../../utils/performance';
+import { detectWebGLSupport } from '../../utils/performance';
 import { updateCarPhysics } from '../../utils/physics';
 import { gameRuntime } from '../../utils/runtime';
 import { CameraController } from './CameraController';
@@ -153,21 +153,19 @@ export function GameCanvas() {
     );
   }
 
-  const profile = getQualityProfile(quality);
-
   return (
     <CanvasErrorBoundary onError={handleCanvasFailure}>
       <div className="fixed inset-0 h-full w-full">
         <Canvas
-          shadows="soft"
-          dpr={profile.dpr}
-          camera={{ fov: 55, near: 0.2, far: 1800, position: [5.2, 2.35, 7.4] }}
+          shadows={quality === 'low' ? false : 'percentage'}
+          dpr={[1, 2]}
+          camera={{ fov: 35, near: 0.2, far: 1800, position: [-4.5, 1.32, -6.7] }}
           gl={{
-            antialias: quality !== 'low',
+            antialias: true,
             powerPreference: 'default',
             failIfMajorPerformanceCaveat: false,
             toneMapping: THREE.ACESFilmicToneMapping,
-            toneMappingExposure: 1.12,
+            toneMappingExposure: 1.15,
           }}
           onCreated={handleCreated}
         >

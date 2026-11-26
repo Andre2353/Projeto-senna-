@@ -5,9 +5,11 @@ import { DEFAULT_MCLAREN_LIVERY, STAGES } from '../../data/sennaData';
 import { useGameStore } from '../../store/useGameStore';
 import type { CarLivery } from '../../types/game';
 import {
+  createCarbonFiberTextureSet,
   createCarNumberPlateTexture,
   createSennaHelmetTexture,
   createTireSidewallTexture,
+  createTireTreadTextureSet,
 } from '../../utils/proceduralTextures';
 import { gameRuntime } from '../../utils/runtime';
 
@@ -193,25 +195,30 @@ export function FormulaChassis({
   const noseGeo = useMemo(() => createNoseLatheGeometry(), []);
 
   const tireSidewallTex = useMemo(() => createTireSidewallTexture(), []);
+  const tireTreadSet = useMemo(() => createTireTreadTextureSet(), []);
+  const carbonSet = useMemo(() => createCarbonFiberTextureSet(8, 8), []);
   const sennaHelmetTex = useMemo(() => createSennaHelmetTexture(), []);
   const numberPlateTex = useMemo(() => createCarNumberPlateTexture(livery), [livery]);
 
   const tireTreadMat = useMemo(
     () =>
       new THREE.MeshStandardMaterial({
-        color: '#141417',
-        roughness: 0.86,
-        metalness: 0.06,
+        color: '#161619',
+        map: tireTreadSet.map,
+        bumpMap: tireTreadSet.bumpMap,
+        bumpScale: 0.01,
+        roughness: 0.88,
+        metalness: 0.05,
       }),
-    []
+    [tireTreadSet]
   );
 
   const tireSidewallMat = useMemo(
     () =>
       new THREE.MeshStandardMaterial({
         map: tireSidewallTex,
-        roughness: 0.78,
-        metalness: 0.08,
+        roughness: 0.82,
+        metalness: 0.05,
       }),
     [tireSidewallTex]
   );
@@ -219,40 +226,48 @@ export function FormulaChassis({
   const carbonMat = useMemo(
     () =>
       new THREE.MeshPhysicalMaterial({
-        color: '#18181b',
-        roughness: 0.42,
-        metalness: 0.45,
-        clearcoat: 0.25,
+        color: '#141416',
+        map: carbonSet.map,
+        bumpMap: carbonSet.bumpMap,
+        bumpScale: 0.015,
+        roughnessMap: carbonSet.roughnessMap,
+        roughness: 0.45,
+        metalness: 0.25,
+        clearcoat: realistic ? 0.6 : 0.3,
+        clearcoatRoughness: 0.16,
+        envMapIntensity: realistic ? 1.25 : 0.9,
       }),
-    []
+    [carbonSet, realistic]
   );
 
   const rimMat = useMemo(
     () =>
       new THREE.MeshStandardMaterial({
         color: '#e4e4e7',
-        roughness: 0.22,
-        metalness: 0.88,
+        roughness: realistic ? 0.2 : 0.22,
+        metalness: realistic ? 0.95 : 0.88,
+        envMapIntensity: realistic ? 1.5 : 1.0,
       }),
-    []
+    [realistic]
   );
 
   const brakeRotorMat = useMemo(
     () =>
       new THREE.MeshStandardMaterial({
-        color: '#71717a',
-        roughness: 0.35,
-        metalness: 0.92,
+        color: '#82828c',
+        roughness: 0.2,
+        metalness: 0.95,
+        envMapIntensity: realistic ? 1.5 : 1.0,
       }),
-    []
+    [realistic]
   );
 
   const caliperMat = useMemo(
     () =>
       new THREE.MeshStandardMaterial({
         color: '#eab308',
-        roughness: 0.3,
-        metalness: 0.75,
+        roughness: 0.26,
+        metalness: 0.82,
       }),
     []
   );
@@ -263,6 +278,11 @@ export function FormulaChassis({
       sidepodGeo.dispose();
       noseGeo.dispose();
       tireSidewallTex.dispose();
+      tireTreadSet.map.dispose();
+      tireTreadSet.bumpMap.dispose();
+      carbonSet.map.dispose();
+      carbonSet.bumpMap.dispose();
+      carbonSet.roughnessMap.dispose();
       sennaHelmetTex.dispose();
       tireTreadMat.dispose();
       tireSidewallMat.dispose();
@@ -275,6 +295,7 @@ export function FormulaChassis({
     brakeRotorMat,
     caliperMat,
     carbonMat,
+    carbonSet,
     cowlingGeo,
     noseGeo,
     rimMat,
@@ -283,6 +304,7 @@ export function FormulaChassis({
     tireSidewallMat,
     tireSidewallTex,
     tireTreadMat,
+    tireTreadSet,
   ]);
 
   useEffect(() => {
@@ -329,10 +351,11 @@ export function FormulaChassis({
         <meshPhysicalMaterial
           ref={primaryMatRef}
           color={livery.primary}
-          roughness={0.22}
-          metalness={0.32}
+          roughness={realistic ? 0.18 : 0.22}
+          metalness={realistic ? 0.25 : 0.32}
           clearcoat={1.0}
-          clearcoatRoughness={0.08}
+          clearcoatRoughness={realistic ? 0.04 : 0.08}
+          envMapIntensity={realistic ? 1.6 : 1.0}
         />
       </mesh>
 
@@ -341,17 +364,24 @@ export function FormulaChassis({
         <meshPhysicalMaterial
           ref={secondaryMatRef}
           color={livery.secondary}
-          roughness={0.22}
-          metalness={0.32}
+          roughness={realistic ? 0.18 : 0.22}
+          metalness={realistic ? 0.25 : 0.32}
           clearcoat={1.0}
-          clearcoatRoughness={0.08}
+          clearcoatRoughness={realistic ? 0.04 : 0.08}
+          envMapIntensity={realistic ? 1.6 : 1.0}
         />
       </mesh>
 
       {/* Nose Top Racing Number Roundel */}
       <mesh position={[0, 0.405, -1.25]} rotation={[-Math.PI / 2 + 0.08, 0, 0]}>
         <planeGeometry args={[0.38, 0.38]} />
-        <meshPhysicalMaterial map={numberPlateTex} roughness={0.22} clearcoat={0.9} />
+        <meshPhysicalMaterial
+          map={numberPlateTex}
+          roughness={realistic ? 0.18 : 0.22}
+          clearcoat={1.0}
+          clearcoatRoughness={realistic ? 0.04 : 0.08}
+          envMapIntensity={realistic ? 1.5 : 1.0}
+        />
       </mesh>
 
       {/* Engine Cover Secondary Livery Dorsal Accent */}
@@ -359,10 +389,11 @@ export function FormulaChassis({
         <cylinderGeometry args={[0.17, 0.25, 1.25, 16]} />
         <meshPhysicalMaterial
           color={livery.secondary}
-          roughness={0.22}
-          metalness={0.32}
+          roughness={realistic ? 0.18 : 0.22}
+          metalness={realistic ? 0.25 : 0.32}
           clearcoat={1.0}
-          clearcoatRoughness={0.08}
+          clearcoatRoughness={realistic ? 0.04 : 0.08}
+          envMapIntensity={realistic ? 1.6 : 1.0}
         />
       </mesh>
 
@@ -377,10 +408,11 @@ export function FormulaChassis({
           <mesh geometry={sidepodGeo} castShadow receiveShadow>
             <meshPhysicalMaterial
               color={livery.primary}
-              roughness={0.22}
-              metalness={0.3}
+              roughness={realistic ? 0.18 : 0.22}
+              metalness={realistic ? 0.25 : 0.3}
               clearcoat={1.0}
-              clearcoatRoughness={0.08}
+              clearcoatRoughness={realistic ? 0.04 : 0.08}
+              envMapIntensity={realistic ? 1.6 : 1.0}
             />
           </mesh>
           {/* Sidepod livery accent band */}
@@ -388,8 +420,11 @@ export function FormulaChassis({
             <boxGeometry args={[0.04, 0.16, 1.32]} />
             <meshPhysicalMaterial
               color={livery.secondary}
-              roughness={0.22}
+              roughness={realistic ? 0.18 : 0.22}
+              metalness={realistic ? 0.25 : 0.3}
               clearcoat={1.0}
+              clearcoatRoughness={realistic ? 0.04 : 0.08}
+              envMapIntensity={realistic ? 1.6 : 1.0}
             />
           </mesh>
           {/* Dark radiator intake opening */}
@@ -437,10 +472,11 @@ export function FormulaChassis({
           <meshPhysicalMaterial
             map={isSennaHelmet ? sennaHelmetTex : undefined}
             color={isSennaHelmet ? '#ffffff' : livery.accent}
-            roughness={0.14}
+            roughness={realistic ? 0.12 : 0.14}
             metalness={0.25}
             clearcoat={1.0}
-            clearcoatRoughness={0.05}
+            clearcoatRoughness={realistic ? 0.04 : 0.05}
+            envMapIntensity={realistic ? 1.6 : 1.0}
           />
         </mesh>
         {/* Mirrored dark visor */}
@@ -448,8 +484,9 @@ export function FormulaChassis({
           <boxGeometry args={[0.23, 0.07, 0.095]} />
           <meshStandardMaterial
             color="#09090b"
-            roughness={realistic ? 0.05 : 0.08}
-            metalness={realistic ? 0.95 : 0.92}
+            roughness={realistic ? 0.04 : 0.08}
+            metalness={realistic ? 1.0 : 0.92}
+            envMapIntensity={realistic ? 2.0 : 1.0}
           />
         </mesh>
       </group>
@@ -458,15 +495,25 @@ export function FormulaChassis({
       <group position={[0, 0.13, -2.38]}>
         <mesh castShadow receiveShadow>
           <boxGeometry args={[1.98, 0.032, 0.44]} />
-          <meshPhysicalMaterial color={livery.primary} roughness={0.22} clearcoat={1.0} />
+          <meshPhysicalMaterial
+            color={livery.primary}
+            roughness={realistic ? 0.18 : 0.22}
+            metalness={realistic ? 0.25 : 0.3}
+            clearcoat={1.0}
+            clearcoatRoughness={realistic ? 0.04 : 0.08}
+            envMapIntensity={realistic ? 1.6 : 1.0}
+          />
         </mesh>
         <mesh position={[0, 0.042, 0.09]} rotation={[-0.22, 0, 0]} castShadow>
           <boxGeometry args={[1.9, 0.026, 0.19]} />
           <meshPhysicalMaterial
             ref={accentMatRef}
             color={livery.accent}
-            roughness={0.24}
+            roughness={realistic ? 0.18 : 0.24}
+            metalness={realistic ? 0.25 : 0.3}
             clearcoat={1.0}
+            clearcoatRoughness={realistic ? 0.04 : 0.08}
+            envMapIntensity={realistic ? 1.6 : 1.0}
           />
         </mesh>
         {([-1, 1] as const).map((side) => (
@@ -483,16 +530,37 @@ export function FormulaChassis({
         </mesh>
         <mesh position={[0, 0.05, 0.02]} rotation={[0.12, 0, 0]} castShadow>
           <boxGeometry args={[1.4, 0.04, 0.36]} />
-          <meshPhysicalMaterial color={livery.primary} roughness={0.22} clearcoat={1.0} />
+          <meshPhysicalMaterial
+            color={livery.primary}
+            roughness={realistic ? 0.18 : 0.22}
+            metalness={realistic ? 0.25 : 0.3}
+            clearcoat={1.0}
+            clearcoatRoughness={realistic ? 0.04 : 0.08}
+            envMapIntensity={realistic ? 1.6 : 1.0}
+          />
         </mesh>
         <mesh position={[0, 0.155, 0.12]} rotation={[0.26, 0, 0]} castShadow>
           <boxGeometry args={[1.4, 0.03, 0.22]} />
-          <meshPhysicalMaterial color={livery.secondary} roughness={0.22} clearcoat={1.0} />
+          <meshPhysicalMaterial
+            color={livery.secondary}
+            roughness={realistic ? 0.18 : 0.22}
+            metalness={realistic ? 0.25 : 0.3}
+            clearcoat={1.0}
+            clearcoatRoughness={realistic ? 0.04 : 0.08}
+            envMapIntensity={realistic ? 1.6 : 1.0}
+          />
         </mesh>
         {([-1, 1] as const).map((side) => (
           <mesh key={side} position={[side * 0.71, -0.06, 0.04]} castShadow>
             <boxGeometry args={[0.045, 0.52, 0.56]} />
-            <meshPhysicalMaterial color={livery.secondary} roughness={0.25} clearcoat={0.9} />
+            <meshPhysicalMaterial
+              color={livery.secondary}
+              roughness={realistic ? 0.18 : 0.25}
+              metalness={realistic ? 0.25 : 0.3}
+              clearcoat={1.0}
+              clearcoatRoughness={realistic ? 0.04 : 0.08}
+              envMapIntensity={realistic ? 1.6 : 1.0}
+            />
           </mesh>
         ))}
       </group>
@@ -729,8 +797,8 @@ export function FormulaCar({
     targetAccent.set(desiredLivery.accent);
 
     const wetClearcoat = realistic ? 1.0 : gameRuntime.rainIntensity > 0.2 ? 1.0 : 0.92;
-    const wetRoughness = realistic ? 0.16 : gameRuntime.rainIntensity > 0.2 ? 0.12 : 0.22;
-    const targetMetalness = realistic ? 0.38 : 0.32;
+    const wetRoughness = realistic ? 0.18 : gameRuntime.rainIntensity > 0.2 ? 0.12 : 0.22;
+    const targetMetalness = realistic ? 0.25 : 0.32;
 
     if (primaryMatRef.current) {
       primaryMatRef.current.color.lerp(targetPrimary, dt * 5);
@@ -741,6 +809,8 @@ export function FormulaCar({
       );
       primaryMatRef.current.metalness = targetMetalness;
       primaryMatRef.current.clearcoat = wetClearcoat;
+      primaryMatRef.current.clearcoatRoughness = realistic ? 0.04 : 0.08;
+      primaryMatRef.current.envMapIntensity = realistic ? 1.6 : 1.0;
     }
 
     if (secondaryMatRef.current) {
@@ -751,6 +821,8 @@ export function FormulaCar({
         dt * 4
       );
       secondaryMatRef.current.metalness = targetMetalness;
+      secondaryMatRef.current.clearcoatRoughness = realistic ? 0.04 : 0.08;
+      secondaryMatRef.current.envMapIntensity = realistic ? 1.6 : 1.0;
     }
 
     if (accentMatRef.current) {
