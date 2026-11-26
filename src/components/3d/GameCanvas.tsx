@@ -1,7 +1,10 @@
 import { Component, type ErrorInfo, type ReactNode, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
+import { STAGES } from '../../data/sennaData';
 import { useGameStore } from '../../store/useGameStore';
+import { getQualityProfile } from '../../utils/performance';
+import { updateCarPhysics } from '../../utils/physics';
 import { gameRuntime } from '../../utils/runtime';
 import { CameraController } from './CameraController';
 import { Environment } from './Environment';
@@ -51,6 +54,9 @@ function isWebGLAvailable(): boolean {
 
 function SceneCore() {
   const mode = useGameStore((state) => state.mode);
+  const isPaused = useGameStore((state) => state.isPaused);
+  const activeStageId = useGameStore((state) => state.activeStageId);
+  const steeringSensitivity = useGameStore((state) => state.settings.steeringSensitivity);
   const markLoaded = useGameStore((state) => state.markLoaded);
 
   useEffect(() => {
@@ -58,14 +64,25 @@ function SceneCore() {
   }, [markLoaded]);
 
   useFrame((_, delta) => {
+    const dt = Math.min(delta, 0.05);
+
     if (mode === 'landing') {
-      const clampedDelta = Math.min(delta, 0.05);
       gameRuntime.speed = 65;
-      gameRuntime.position.z -= clampedDelta * 18;
+      gameRuntime.position.z -= dt * 18;
       if (gameRuntime.position.z < -260) {
         gameRuntime.position.z = 0;
       }
+      return;
     }
+
+    if (isPaused || mode === 'credits') {
+      return;
+    }
+
+    const activeStage =
+      activeStageId !== null ? STAGES.find((stage) => stage.id === activeStageId) ?? null : null;
+
+    updateCarPhysics(dt, mode, activeStage, steeringSensitivity);
   });
 
   return (
@@ -75,18 +92,10 @@ function SceneCore() {
       <CameraController />
       <FormulaCar />
 
-      {/* Preview track surface until CorridorTrack and RaceTrack replace it in Phase D */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, -1625]} receiveShadow>
-        <planeGeometry args={[28, 3400]} />
+      {/* Track surface placeholder until Phase D full CorridorTrack/RaceTrack */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, -2200]} receiveShadow>
+        <planeGeometry args={[860, 4800]} />
         <meshStandardMaterial color="#18181b" roughness={0.78} metalness={0.18} />
-      </mesh>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[-14.2, 0.01, -1625]}>
-        <planeGeometry args={[0.45, 3400]} />
-        <meshStandardMaterial color="#f8fafc" roughness={0.5} />
-      </mesh>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[14.2, 0.01, -1625]}>
-        <planeGeometry args={[0.45, 3400]} />
-        <meshStandardMaterial color="#f8fafc" roughness={0.5} />
       </mesh>
     </>
   );
@@ -106,7 +115,7 @@ export function GameCanvas() {
     if (!supported) {
       markLoaded();
     } else {
-      setLoadProgress(90);
+      setLoadProgress(95);
     }
   }, [markLoaded, setLoadProgress, setWebglSupported]);
 
@@ -129,15 +138,14 @@ export function GameCanvas() {
     );
   }
 
-  const dpr: [number, number] =
-    quality === 'high' ? [1, 2] : quality === 'medium' ? [1, 1.5] : [0.85, 1];
+  const profile = getQualityProfile(quality);
 
   return (
     <CanvasErrorBoundary onError={() => setWebglSupported(false)}>
       <div className="fixed inset-0 h-full w-full">
         <Canvas
           shadows={quality !== 'low'}
-          dpr={dpr}
+          dpr={profile.dpr}
           camera={{ fov: 55, near: 0.2, far: 1400, position: [5.2, 2.35, 7.4] }}
           gl={{
             antialias: quality !== 'low',
