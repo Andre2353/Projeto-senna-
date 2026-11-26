@@ -11,6 +11,7 @@ import { CorridorTrack } from './CorridorTrack';
 import { Effects } from './Effects';
 import { Environment } from './Environment';
 import { FormulaCar } from './FormulaCar';
+import { OpenWorldArena } from './OpenWorldArena';
 import { RaceTrack } from './RaceTrack';
 import { SceneLighting } from './SceneLighting';
 
@@ -96,6 +97,7 @@ function SceneCore() {
       <FormulaCar />
       <CorridorTrack />
       <RaceTrack />
+      <OpenWorldArena />
       <Effects />
     </>
   );
