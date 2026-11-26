@@ -163,15 +163,15 @@ export function GameCanvas() {
     <CanvasErrorBoundary onError={handleCanvasFailure}>
       <div className="fixed inset-0 h-full w-full">
         <Canvas
-          shadows={quality !== 'low'}
+          shadows="soft"
           dpr={profile.dpr}
-          camera={{ fov: 55, near: 0.2, far: 1400, position: [5.2, 2.35, 7.4] }}
+          camera={{ fov: 55, near: 0.2, far: 1800, position: [5.2, 2.35, 7.4] }}
           gl={{
             antialias: quality !== 'low',
             powerPreference: 'default',
             failIfMajorPerformanceCaveat: false,
             toneMapping: THREE.ACESFilmicToneMapping,
-            toneMappingExposure: 1.05,
+            toneMappingExposure: 1.12,
           }}
           onCreated={handleCreated}
         >

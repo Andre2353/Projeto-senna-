@@ -26,6 +26,7 @@ export function Effects() {
 
   const rainMeshRef = useRef<THREE.InstancedMesh>(null);
   const sprayMeshRef = useRef<THREE.InstancedMesh>(null);
+  const smokeMeshRef = useRef<THREE.InstancedMesh>(null);
   const sparkMeshRef = useRef<THREE.InstancedMesh>(null);
   const windMeshRef = useRef<THREE.InstancedMesh>(null);
   const dummy = useMemo(() => new THREE.Object3D(), []);
@@ -53,14 +54,30 @@ export function Effects() {
         x: 0,
         y: -10,
         z: 0,
-        vx: (Math.random() - 0.5) * 2.2,
-        vy: 1.5 + Math.random() * 2.8,
-        vz: 6 + Math.random() * 12,
+        vx: (Math.random() - 0.5) * 2.5,
+        vy: 1.8 + Math.random() * 3.2,
+        vz: 8 + Math.random() * 14,
         life: Math.random(),
       });
     }
     return arr;
   }, [profile.sprayCount]);
+
+  const smokeParticles = useMemo<ParticleState[]>(() => {
+    const arr: ParticleState[] = [];
+    for (let i = 0; i < 120; i++) {
+      arr.push({
+        x: 0,
+        y: -10,
+        z: 0,
+        vx: (Math.random() - 0.5) * 1.8,
+        vy: 0.7 + Math.random() * 1.4,
+        vz: (Math.random() - 0.5) * 1.8,
+        life: Math.random(),
+      });
+    }
+    return arr;
+  }, []);
 
   const sparkParticles = useMemo<ParticleState[]>(() => {
     const arr: ParticleState[] = [];
@@ -69,9 +86,9 @@ export function Effects() {
         x: 0,
         y: -10,
         z: 0,
-        vx: (Math.random() - 0.5) * 3.5,
-        vy: 0.8 + Math.random() * 2.2,
-        vz: 12 + Math.random() * 15,
+        vx: (Math.random() - 0.5) * 4.5,
+        vy: 1.0 + Math.random() * 2.8,
+        vz: 12 + Math.random() * 18,
         life: Math.random(),
       });
     }
@@ -95,19 +112,22 @@ export function Effects() {
   }, []);
 
   useEffect(() => {
-    // Initialize off-screen matrices cleanly
     dummy.position.set(0, -100, 0);
     dummy.scale.set(0.001, 0.001, 0.001);
     dummy.updateMatrix();
-    [rainMeshRef.current, sprayMeshRef.current, sparkMeshRef.current, windMeshRef.current].forEach(
-      (mesh) => {
-        if (!mesh) return;
-        for (let i = 0; i < mesh.count; i++) {
-          mesh.setMatrixAt(i, dummy.matrix);
-        }
-        mesh.instanceMatrix.needsUpdate = true;
+    [
+      rainMeshRef.current,
+      sprayMeshRef.current,
+      smokeMeshRef.current,
+      sparkMeshRef.current,
+      windMeshRef.current,
+    ].forEach((mesh) => {
+      if (!mesh) return;
+      for (let i = 0; i < mesh.count; i++) {
+        mesh.setMatrixAt(i, dummy.matrix);
       }
-    );
+      mesh.instanceMatrix.needsUpdate = true;
+    });
   }, [dummy, profile]);
 
   useFrame((_, delta) => {
@@ -118,7 +138,7 @@ export function Effects() {
     const dt = Math.min(delta, 0.05);
     const px = gameRuntime.position.x;
     const pz = gameRuntime.position.z;
-    const speedNorm = Math.min(1, Math.max(0, gameRuntime.speed / 330));
+    const speedNorm = Math.min(1, Math.max(0, Math.abs(gameRuntime.speed) / 330));
     const rainLevel = gameRuntime.rainIntensity;
     const sinH = Math.sin(gameRuntime.heading);
     const cosH = Math.cos(gameRuntime.heading);
@@ -158,12 +178,12 @@ export function Effects() {
       rainMeshRef.current.instanceMatrix.needsUpdate = true;
     }
 
-    // 2. Tire spray on wet asphalt
+    // 2. Voluminous tire spray on wet asphalt
     if (sprayMeshRef.current) {
-      const showSpray = rainLevel > 0.15 && gameRuntime.speed > 38;
+      const showSpray = rainLevel > 0.15 && gameRuntime.speed > 35;
       for (let i = 0; i < profile.sprayCount; i++) {
         const p = sprayParticles[i]!;
-        if (!showSpray) {
+        if (!showSpray && p.life <= 0) {
           dummy.position.set(0, -100, 0);
           dummy.scale.set(0.001, 0.001, 0.001);
           dummy.updateMatrix();
@@ -171,39 +191,92 @@ export function Effects() {
           continue;
         }
 
-        p.life -= dt * (1.8 + speedNorm * 1.4);
-        if (p.life <= 0) {
-          const wheelSide = i % 2 === 0 ? -0.96 : 0.96;
-          p.x = px + wheelSide * cosH + sinH * 1.65 + (Math.random() - 0.5) * 0.3;
-          p.y = 0.25 + Math.random() * 0.2;
-          p.z = pz - wheelSide * sinH + cosH * 1.65;
-          p.vx = (Math.random() - 0.5) * 2.4;
-          p.vy = 1.2 + Math.random() * 2.8 * speedNorm;
-          p.vz = (8 + speedNorm * 22) * cosH;
-          p.life = 0.4 + Math.random() * 0.5;
+        p.life -= dt * (1.6 + speedNorm * 1.4);
+        if (p.life <= 0 && showSpray) {
+          const wheelSide = i % 2 === 0 ? -0.99 : 0.99;
+          p.x = px + wheelSide * cosH + sinH * 1.7 + (Math.random() - 0.5) * 0.35;
+          p.y = 0.28 + Math.random() * 0.25;
+          p.z = pz - wheelSide * sinH + cosH * 1.7;
+          p.vx = (Math.random() - 0.5) * 3.0;
+          p.vy = 1.6 + Math.random() * 3.6 * speedNorm;
+          p.vz = (9 + speedNorm * 24) * cosH;
+          p.life = 0.45 + Math.random() * 0.55;
         } else {
           p.x += p.vx * dt;
           p.y += p.vy * dt;
           p.z += p.vz * dt;
-          p.vy -= 4.5 * dt;
+          p.vy -= 4.2 * dt;
         }
 
-        const scale = (0.35 + (1 - p.life) * 1.25) * rainLevel;
-        dummy.position.set(p.x, Math.max(0.05, p.y), p.z);
-        dummy.rotation.set(0, 0, 0);
-        dummy.scale.set(scale, scale, scale);
+        if (p.life > 0) {
+          const scale = (0.55 + (1 - p.life) * 2.1) * Math.max(0.4, rainLevel);
+          dummy.position.set(p.x, Math.max(0.08, p.y), p.z);
+          dummy.rotation.set(0, 0, 0);
+          dummy.scale.set(scale, scale, scale);
+        } else {
+          dummy.position.set(0, -100, 0);
+          dummy.scale.set(0.001, 0.001, 0.001);
+        }
         dummy.updateMatrix();
         sprayMeshRef.current.setMatrixAt(i, dummy.matrix);
       }
       sprayMeshRef.current.instanceMatrix.needsUpdate = true;
     }
 
-    // 3. Underbody sparks on kerbs or hard braking compression
+    // 3. Subtle white tire smoke during Open World drift / handbrake
+    if (smokeMeshRef.current) {
+      const showSmoke =
+        mode === 'open_world' &&
+        (gameRuntime.drift > 0.25 || gameRuntime.handbrake) &&
+        Math.abs(gameRuntime.speed) > 35;
+
+      for (let i = 0; i < 120; i++) {
+        const p = smokeParticles[i]!;
+        if (!showSmoke && p.life <= 0) {
+          dummy.position.set(0, -100, 0);
+          dummy.scale.set(0.001, 0.001, 0.001);
+          dummy.updateMatrix();
+          smokeMeshRef.current.setMatrixAt(i, dummy.matrix);
+          continue;
+        }
+
+        p.life -= dt * 1.4;
+        if (p.life <= 0 && showSmoke) {
+          const wheelSide = i % 2 === 0 ? -0.99 : 0.99;
+          p.x = px + wheelSide * cosH + sinH * 1.55 + (Math.random() - 0.5) * 0.3;
+          p.y = 0.16 + Math.random() * 0.12;
+          p.z = pz - wheelSide * sinH + cosH * 1.55;
+          p.vx = (Math.random() - 0.5) * 1.6;
+          p.vy = 0.9 + Math.random() * 1.4;
+          p.vz = (Math.random() - 0.5) * 1.6;
+          p.life = 0.6 + Math.random() * 0.5;
+        } else {
+          p.x += p.vx * dt;
+          p.y += p.vy * dt;
+          p.z += p.vz * dt;
+        }
+
+        if (p.life > 0) {
+          const scale = 0.45 + (1 - p.life) * 1.9;
+          dummy.position.set(p.x, p.y, p.z);
+          dummy.rotation.set(0, 0, 0);
+          dummy.scale.set(scale, scale * 0.7, scale);
+        } else {
+          dummy.position.set(0, -100, 0);
+          dummy.scale.set(0.001, 0.001, 0.001);
+        }
+        dummy.updateMatrix();
+        smokeMeshRef.current.setMatrixAt(i, dummy.matrix);
+      }
+      smokeMeshRef.current.instanceMatrix.needsUpdate = true;
+    }
+
+    // 4. Vivid bloom-triggering underbody sparks on kerbs or hard braking compression
     if (sparkMeshRef.current) {
       const emitSparks =
         !reducedMotion &&
-        gameRuntime.speed > 135 &&
-        (gameRuntime.surfaceKerb || gameRuntime.brake > 0.65);
+        gameRuntime.speed > 125 &&
+        (gameRuntime.surfaceKerb || gameRuntime.brake > 0.6);
 
       for (let i = 0; i < profile.sparkCount; i++) {
         const s = sparkParticles[i]!;
@@ -215,15 +288,15 @@ export function Effects() {
           continue;
         }
 
-        s.life -= dt * 3.8;
+        s.life -= dt * 3.4;
         if (s.life <= 0 && emitSparks) {
-          s.x = px + (Math.random() - 0.5) * 0.85;
-          s.y = 0.08;
+          s.x = px + (Math.random() - 0.5) * 0.9;
+          s.y = 0.09;
           s.z = pz + sinH * 0.8 + cosH * 0.8;
-          s.vx = (Math.random() - 0.5) * 4.5;
-          s.vy = 1.4 + Math.random() * 2.6;
-          s.vz = 14 + speedNorm * 20;
-          s.life = 0.25 + Math.random() * 0.25;
+          s.vx = (Math.random() - 0.5) * 5.2;
+          s.vy = 1.6 + Math.random() * 3.0;
+          s.vz = 15 + speedNorm * 22;
+          s.life = 0.25 + Math.random() * 0.28;
         } else {
           s.x += s.vx * dt;
           s.y += s.vy * dt;
@@ -232,9 +305,9 @@ export function Effects() {
         }
 
         if (s.life > 0) {
-          dummy.position.set(s.x, Math.max(0.03, s.y), s.z);
+          dummy.position.set(s.x, Math.max(0.04, s.y), s.z);
           dummy.rotation.set(0, gameRuntime.heading, 0);
-          dummy.scale.set(0.08, 0.08, 0.65);
+          dummy.scale.set(0.09, 0.09, 0.85);
         } else {
           dummy.position.set(0, -100, 0);
           dummy.scale.set(0.001, 0.001, 0.001);
@@ -245,10 +318,9 @@ export function Effects() {
       sparkMeshRef.current.instanceMatrix.needsUpdate = true;
     }
 
-    // 4. Aerodynamic wind lines above 250 km/h (and golden dust motes on landing)
+    // 5. Aerodynamic wind lines above 245 km/h
     if (windMeshRef.current) {
-      const showWind =
-        !reducedMotion && mode !== 'landing' && gameRuntime.speed > 245;
+      const showWind = !reducedMotion && mode !== 'landing' && gameRuntime.speed > 245;
 
       for (let i = 0; i < 64; i++) {
         const w = windLines[i]!;
@@ -285,13 +357,18 @@ export function Effects() {
       </instancedMesh>
 
       <instancedMesh ref={sprayMeshRef} args={[undefined, undefined, profile.sprayCount]} frustumCulled={false}>
-        <sphereGeometry args={[0.24, 6, 6]} />
+        <sphereGeometry args={[0.26, 7, 7]} />
         <meshBasicMaterial color="#e2e8f0" transparent opacity={0.28} />
+      </instancedMesh>
+
+      <instancedMesh ref={smokeMeshRef} args={[undefined, undefined, 120]} frustumCulled={false}>
+        <sphereGeometry args={[0.28, 7, 7]} />
+        <meshBasicMaterial color="#f8fafc" transparent opacity={0.22} />
       </instancedMesh>
 
       <instancedMesh ref={sparkMeshRef} args={[undefined, undefined, profile.sparkCount]} frustumCulled={false}>
         <boxGeometry args={[1, 1, 1]} />
-        <meshBasicMaterial color="#fbbf24" />
+        <meshBasicMaterial color={[4.5, 2.4, 0.35]} toneMapped={false} />
       </instancedMesh>
 
       <instancedMesh ref={windMeshRef} args={[undefined, undefined, 64]} frustumCulled={false}>
@@ -303,11 +380,11 @@ export function Effects() {
         <EffectComposer multisampling={0}>
           <Bloom
             mipmapBlur
-            luminanceThreshold={0.92}
-            luminanceSmoothing={0.35}
-            intensity={0.38}
+            luminanceThreshold={0.9}
+            luminanceSmoothing={0.3}
+            intensity={0.45}
           />
-          <Vignette eskil={false} offset={0.22} darkness={0.45} />
+          <Vignette eskil={false} offset={0.22} darkness={0.4} />
         </EffectComposer>
       )}
     </>

@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { STAGES } from '../../data/sennaData';
 import { useGameStore } from '../../store/useGameStore';
+import { getQualityProfile } from '../../utils/performance';
 import { gameRuntime } from '../../utils/runtime';
 
 export function SceneLighting() {
@@ -18,6 +19,8 @@ export function SceneLighting() {
   const targetHemiSky = useMemo(() => new THREE.Color('#7dd3fc'), []);
   const targetHemiGround = useMemo(() => new THREE.Color('#166534'), []);
 
+  const profile = useMemo(() => getQualityProfile(quality), [quality]);
+
   useFrame((_, delta) => {
     const dt = Math.min(delta, 0.05);
     const activeStage =
@@ -26,32 +29,31 @@ export function SceneLighting() {
         : undefined;
 
     let sunColor = '#fde68a';
-    let sunIntensity = 2.4;
-    let ambientIntensity = 0.85;
-    let hemiIntensity = 0.95;
+    let sunIntensity = 2.6;
+    let ambientIntensity = 0.75;
+    let hemiIntensity = 1.0;
     let skyColor = '#7dd3fc';
     let groundColor = '#1e293b';
 
     if (mode === 'race' && activeStage) {
       sunColor = activeStage.weather.sunColor;
-      sunIntensity = activeStage.weather.sunIntensity * 1.15;
-      ambientIntensity = activeStage.weather.ambientIntensity * 1.1;
-      hemiIntensity = activeStage.weather.rain > 0.5 ? 0.85 : 1.05;
+      sunIntensity = activeStage.weather.sunIntensity * 1.2;
+      ambientIntensity = activeStage.weather.ambientIntensity * 1.05;
+      hemiIntensity = activeStage.weather.rain > 0.5 ? 0.9 : 1.1;
       skyColor = activeStage.weather.skyColor;
       groundColor = activeStage.weather.wetAsphalt ? '#1e293b' : '#14532d';
     } else if (mode === 'open_world' || mode === 'credits') {
-      // Bright, vivid lighting so car and monuments pop cleanly
       sunColor = '#fef08a';
-      sunIntensity = 2.8;
-      ambientIntensity = 1.05;
+      sunIntensity = 2.9;
+      ambientIntensity = 0.95;
       hemiIntensity = 1.35;
       skyColor = '#93c5fd';
       groundColor = '#15803d';
     } else {
       sunColor = '#fde68a';
-      sunIntensity = 2.3;
-      ambientIntensity = 0.85;
-      hemiIntensity = 0.9;
+      sunIntensity = 2.5;
+      ambientIntensity = 0.8;
+      hemiIntensity = 0.95;
       skyColor = '#60a5fa';
       groundColor = '#1e293b';
     }
@@ -68,9 +70,9 @@ export function SceneLighting() {
       );
 
       dirLightRef.current.position.set(
-        gameRuntime.position.x + 32,
-        48,
-        gameRuntime.position.z - 28
+        gameRuntime.position.x + 28,
+        44,
+        gameRuntime.position.z - 22
       );
       dirLightRef.current.target.position.set(
         gameRuntime.position.x,
@@ -83,8 +85,8 @@ export function SceneLighting() {
     if (fillLightRef.current) {
       fillLightRef.current.position.set(
         gameRuntime.position.x - 24,
-        22,
-        gameRuntime.position.z + 25
+        24,
+        gameRuntime.position.z + 24
       );
     }
 
@@ -109,32 +111,31 @@ export function SceneLighting() {
     }
   });
 
-  const shadowMapSize = quality === 'high' ? 2048 : 1024;
-
   return (
     <>
-      <ambientLight ref={ambientRef} intensity={0.85} />
+      <ambientLight ref={ambientRef} intensity={0.8} />
       <hemisphereLight ref={hemiRef} args={['#7dd3fc', '#166534', 1.05]} />
       <directionalLight
         ref={fillLightRef}
-        position={[-24, 22, 25]}
-        intensity={0.65}
+        position={[-24, 24, 24]}
+        intensity={0.7}
         color="#fed7aa"
       />
       <directionalLight
         ref={dirLightRef}
-        position={[32, 48, -28]}
-        intensity={2.4}
+        position={[28, 44, -22]}
+        intensity={2.6}
         color="#fde68a"
         castShadow={quality !== 'low'}
-        shadow-mapSize={[shadowMapSize, shadowMapSize]}
+        shadow-mapSize={[profile.shadowMapSize, profile.shadowMapSize]}
         shadow-camera-near={1}
-        shadow-camera-far={160}
-        shadow-camera-left={-35}
-        shadow-camera-right={35}
-        shadow-camera-top={35}
-        shadow-camera-bottom={-35}
-        shadow-bias={-0.0005}
+        shadow-camera-far={150}
+        shadow-camera-left={-32}
+        shadow-camera-right={32}
+        shadow-camera-top={32}
+        shadow-camera-bottom={-32}
+        shadow-bias={-0.0004}
+        shadow-normalBias={0.02}
       />
     </>
   );

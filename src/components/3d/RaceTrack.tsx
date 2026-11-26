@@ -6,6 +6,13 @@ import { useGameStore } from '../../store/useGameStore';
 import type { OpponentSpec, StageConfig } from '../../types/game';
 import { engineAudio } from '../../utils/engineAudio';
 import { getToonGradientMap } from '../../utils/performance';
+import {
+  createAsphaltTextureSet,
+  createBrakeBoardTexture,
+  createGrassTextureSet,
+  createRetroSponsorTexture,
+  createStartingGridTexture,
+} from '../../utils/proceduralTextures';
 import { gameRuntime } from '../../utils/runtime';
 import { OpponentCar } from './OpponentCar';
 
@@ -42,6 +49,7 @@ function createCheckeredBannerTexture(circuit: string, year: number): THREE.Canv
   }
 
   const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
   texture.needsUpdate = true;
   return texture;
 }
@@ -68,6 +76,7 @@ function createBrazilFlagTexture(): THREE.CanvasTexture {
     ctx.fill();
   }
   const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
   tex.needsUpdate = true;
   return tex;
 }
@@ -86,7 +95,6 @@ function SuzukaFerrisWheel() {
 
   return (
     <group position={[-82, 54, -760]}>
-      {/* Support A-frame legs */}
       <mesh position={[-16, -26, 0]} rotation={[0, 0, -0.28]}>
         <boxGeometry args={[2.6, 58, 2.6]} />
         <meshToonMaterial color="#e2e8f0" gradientMap={gradientMap} />
@@ -131,25 +139,64 @@ function SuzukaFerrisWheel() {
 function CircuitScenery({ stage }: { stage: StageConfig }) {
   const leftBlocksRef = useRef<THREE.InstancedMesh>(null);
   const rightBlocksRef = useRef<THREE.InstancedMesh>(null);
+  const canopyRef = useRef<THREE.InstancedMesh>(null);
   const kerbLeftRef = useRef<THREE.InstancedMesh>(null);
   const kerbRightRef = useRef<THREE.InstancedMesh>(null);
+  const railPostsRef = useRef<THREE.InstancedMesh>(null);
+  const tireWallRef = useRef<THREE.InstancedMesh>(null);
+  const lampPolesRef = useRef<THREE.InstancedMesh>(null);
   const palmTrunksRef = useRef<THREE.InstancedMesh>(null);
   const palmTopsRef = useRef<THREE.InstancedMesh>(null);
   const hillsRef = useRef<THREE.InstancedMesh>(null);
+  const bgTreesTrunkRef = useRef<THREE.InstancedMesh>(null);
+  const bgTreesTopRef = useRef<THREE.InstancedMesh>(null);
 
   const gradientMap = useMemo(() => getToonGradientMap(), []);
+  const asphaltSet = useMemo(
+    () => createAsphaltTextureSet(stage.weather.wetAsphalt, 2, 56),
+    [stage.weather.wetAsphalt]
+  );
+  const grassSet = useMemo(() => createGrassTextureSet(48, 64), []);
+  const gridTex = useMemo(() => createStartingGridTexture(), []);
   const finishTexture = useMemo(
     () => createCheckeredBannerTexture(stage.circuit, stage.year),
     [stage.circuit, stage.year]
   );
   const brazilFlagTexture = useMemo(() => createBrazilFlagTexture(), []);
+  const brake150Tex = useMemo(() => createBrakeBoardTexture('150M'), []);
+  const brake100Tex = useMemo(() => createBrakeBoardTexture('100M'), []);
+  const brake50Tex = useMemo(() => createBrakeBoardTexture('50M'), []);
+  const sponsorTextures = useMemo(
+    () => [0, 1, 2, 3].map((idx) => createRetroSponsorTexture(idx)),
+    []
+  );
 
   useEffect(() => {
     return () => {
+      asphaltSet.map.dispose();
+      asphaltSet.roughnessMap.dispose();
+      asphaltSet.bumpMap.dispose();
+      grassSet.map.dispose();
+      grassSet.bumpMap.dispose();
+      gridTex.dispose();
       finishTexture.dispose();
       brazilFlagTexture.dispose();
+      brake150Tex.dispose();
+      brake100Tex.dispose();
+      brake50Tex.dispose();
+      sponsorTextures.forEach((t) => t.dispose());
     };
-  }, [brazilFlagTexture, finishTexture]);
+  }, [
+    asphaltSet,
+    brake100Tex,
+    brake150Tex,
+    brake50Tex,
+    brazilFlagTexture,
+    finishTexture,
+    grassSet,
+    gridTex,
+    sponsorTextures,
+  ]);
 
   const isStreet = stage.id === 1 || stage.id === 4 || stage.id === 6;
   const isMonaco = stage.id === 1 || stage.id === 6;
@@ -160,7 +207,7 @@ function CircuitScenery({ stage }: { stage: StageConfig }) {
   const isInterlagos = stage.id === 5;
   const isDonington = stage.id === 7;
 
-  const trackLength = stage.raceDistance + 240;
+  const trackLength = stage.raceDistance + 360;
   const blockCount = 34;
   const kerbCount = Math.floor(stage.raceDistance / 16);
 
@@ -168,6 +215,7 @@ function CircuitScenery({ stage }: { stage: StageConfig }) {
     const dummy = new THREE.Object3D();
     const color = new THREE.Color();
 
+    // Layer 2: Buildings / Covered Grandstands
     if (leftBlocksRef.current && rightBlocksRef.current) {
       const monacoColors = ['#fed7aa', '#fca5a5', '#bfdbfe', '#fde68a', '#e2e8f0'];
       const phoenixColors = ['#475569', '#334155', '#64748b', '#94a3b8'];
@@ -179,6 +227,7 @@ function CircuitScenery({ stage }: { stage: StageConfig }) {
         const offsetX = isStreet ? 20 : 28;
 
         dummy.position.set(-offsetX, heightL / 2, z);
+        dummy.rotation.set(0, 0, 0);
         dummy.scale.set(isStreet ? 10 : 11, heightL, isStreet ? 20 : 32);
         dummy.updateMatrix();
         leftBlocksRef.current.setMatrixAt(i, dummy.matrix);
@@ -187,6 +236,13 @@ function CircuitScenery({ stage }: { stage: StageConfig }) {
         dummy.scale.set(isStreet ? 10 : 11, heightR, isStreet ? 20 : 32);
         dummy.updateMatrix();
         rightBlocksRef.current.setMatrixAt(i, dummy.matrix);
+
+        if (canopyRef.current && !isStreet) {
+          dummy.position.set(-offsetX + 1.2, heightL + 1.2, z);
+          dummy.scale.set(13, 0.6, 33);
+          dummy.updateMatrix();
+          canopyRef.current.setMatrixAt(i, dummy.matrix);
+        }
 
         if (isMonaco) {
           color.set(monacoColors[i % monacoColors.length]!);
@@ -208,17 +264,20 @@ function CircuitScenery({ stage }: { stage: StageConfig }) {
       rightBlocksRef.current.instanceMatrix.needsUpdate = true;
       if (leftBlocksRef.current.instanceColor) leftBlocksRef.current.instanceColor.needsUpdate = true;
       if (rightBlocksRef.current.instanceColor) rightBlocksRef.current.instanceColor.needsUpdate = true;
+      if (canopyRef.current) canopyRef.current.instanceMatrix.needsUpdate = true;
     }
 
+    // Layer 1: 3D Raised Kerbs
     if (kerbLeftRef.current && kerbRightRef.current) {
       for (let i = 0; i < kerbCount; i++) {
         const z = -i * 16 - 8;
-        dummy.position.set(-12.0, 0.02, z);
+        dummy.position.set(-12.0, 0.03, z);
+        dummy.rotation.set(0, 0, 0);
         dummy.scale.set(1, 1, 1);
         dummy.updateMatrix();
         kerbLeftRef.current.setMatrixAt(i, dummy.matrix);
 
-        dummy.position.set(12.0, 0.02, z);
+        dummy.position.set(12.0, 0.03, z);
         dummy.updateMatrix();
         kerbRightRef.current.setMatrixAt(i, dummy.matrix);
 
@@ -232,12 +291,70 @@ function CircuitScenery({ stage }: { stage: StageConfig }) {
       if (kerbRightRef.current.instanceColor) kerbRightRef.current.instanceColor.needsUpdate = true;
     }
 
+    // Layer 1: Metallic Barrier Posts + Stacked Tire Barriers
+    if (railPostsRef.current) {
+      let idx = 0;
+      for (let z = 30; z >= -stage.raceDistance - 80; z -= 18) {
+        for (const side of [-1, 1] as const) {
+          if (idx >= 210) break;
+          dummy.position.set(side * (isStreet ? 13.1 : 16.7), 0.6, z);
+          dummy.rotation.set(0, 0, 0);
+          dummy.scale.set(1, 1, 1);
+          dummy.updateMatrix();
+          railPostsRef.current.setMatrixAt(idx++, dummy.matrix);
+        }
+      }
+      railPostsRef.current.count = idx;
+      railPostsRef.current.instanceMatrix.needsUpdate = true;
+    }
+
+    if (tireWallRef.current) {
+      let idx = 0;
+      for (let z = -60; z >= -stage.raceDistance; z -= 95) {
+        for (const side of [-1, 1] as const) {
+          for (let row = 0; row < 2; row++) {
+            if (idx >= 80) break;
+            dummy.position.set(side * (isStreet ? 13.8 : 17.5), 0.36 + row * 0.5, z);
+            dummy.rotation.set(0, 0, 0);
+            dummy.scale.set(1, 1, 1);
+            dummy.updateMatrix();
+            tireWallRef.current.setMatrixAt(idx, dummy.matrix);
+            color.set((idx + row) % 2 === 0 ? '#ef4444' : '#f8fafc');
+            tireWallRef.current.setColorAt(idx, color);
+            idx += 1;
+          }
+        }
+      }
+      tireWallRef.current.count = idx;
+      tireWallRef.current.instanceMatrix.needsUpdate = true;
+      if (tireWallRef.current.instanceColor) tireWallRef.current.instanceColor.needsUpdate = true;
+    }
+
+    // Layer 2: Trackside Lighting Poles
+    if (lampPolesRef.current) {
+      let idx = 0;
+      for (let z = -30; z >= -stage.raceDistance; z -= 85) {
+        for (const side of [-1, 1] as const) {
+          if (idx >= 48) break;
+          dummy.position.set(side * (isStreet ? 14.4 : 18.2), 4.5, z);
+          dummy.rotation.set(0, 0, 0);
+          dummy.scale.set(1, 1, 1);
+          dummy.updateMatrix();
+          lampPolesRef.current.setMatrixAt(idx++, dummy.matrix);
+        }
+      }
+      lampPolesRef.current.count = idx;
+      lampPolesRef.current.instanceMatrix.needsUpdate = true;
+    }
+
+    // Phoenix Palms
     if (isPhoenix && palmTrunksRef.current && palmTopsRef.current) {
       for (let i = 0; i < 24; i++) {
         const side = i % 2 === 0 ? -1 : 1;
         const z = -i * 58 - 25;
         const x = side * 15.5;
         dummy.position.set(x, 4.5, z);
+        dummy.rotation.set(0, 0, 0);
         dummy.scale.set(1, 1, 1);
         dummy.updateMatrix();
         palmTrunksRef.current.setMatrixAt(i, dummy.matrix);
@@ -250,49 +367,98 @@ function CircuitScenery({ stage }: { stage: StageConfig }) {
       palmTopsRef.current.instanceMatrix.needsUpdate = true;
     }
 
-    if ((isInterlagos || isDonington) && hillsRef.current) {
-      for (let i = 0; i < 20; i++) {
+    // Layer 3: Horizon-closing Hills & Varied Trees
+    if (hillsRef.current) {
+      for (let i = 0; i < 36; i++) {
         const side = i % 2 === 0 ? -1 : 1;
-        const z = -i * 80 - 40;
-        const radius = 38 + (i % 3) * 14;
-        const height = 22 + (i % 4) * 8;
-        dummy.position.set(side * (68 + (i % 3) * 18), height * 0.4, z);
+        const z = -(Math.floor(i / 2) * 95) + 40;
+        const radius = 58 + (i % 4) * 18;
+        const height = 28 + (i % 5) * 14;
+        dummy.position.set(side * (145 + (i % 3) * 42), height * 0.42, z);
+        dummy.rotation.set(0, i * 0.4, 0);
         dummy.scale.set(radius, height, radius);
         dummy.updateMatrix();
         hillsRef.current.setMatrixAt(i, dummy.matrix);
       }
       hillsRef.current.instanceMatrix.needsUpdate = true;
     }
+
+    if (!isStreet && bgTreesTrunkRef.current && bgTreesTopRef.current) {
+      for (let i = 0; i < 64; i++) {
+        const side = i % 2 === 0 ? -1 : 1;
+        const z = -(Math.floor(i / 2) * 52) + 20;
+        const x = side * (44 + (i % 5) * 16);
+        const s = 0.85 + (i % 4) * 0.3;
+        dummy.position.set(x, 1.8 * s, z);
+        dummy.rotation.set(0, 0, 0);
+        dummy.scale.set(s, s, s);
+        dummy.updateMatrix();
+        bgTreesTrunkRef.current.setMatrixAt(i, dummy.matrix);
+
+        dummy.position.set(x, 5.2 * s, z);
+        dummy.updateMatrix();
+        bgTreesTopRef.current.setMatrixAt(i, dummy.matrix);
+      }
+      bgTreesTrunkRef.current.instanceMatrix.needsUpdate = true;
+      bgTreesTopRef.current.instanceMatrix.needsUpdate = true;
+    }
   }, [
     blockCount,
     hasHarbor,
-    isDonington,
     isEstoril,
     isInterlagos,
     isMonaco,
     isPhoenix,
     isStreet,
     kerbCount,
+    stage.raceDistance,
   ]);
+
+  const markerAnchors = [-250, -520, -820, -1120];
 
   return (
     <group>
-      {/* Surrounding terrain */}
+      {/* Layer 3: Wide Surrounding Terrain closing horizon */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.05, -trackLength / 2]} receiveShadow>
-        <planeGeometry args={[900, trackLength + 400]} />
+        <planeGeometry args={[1800, trackLength + 800]} />
+        {isStreet ? (
+          <meshStandardMaterial
+            color={isPhoenix ? '#b45309' : '#1f2937'}
+            roughness={0.92}
+          />
+        ) : (
+          <meshStandardMaterial
+            map={grassSet.map}
+            bumpMap={grassSet.bumpMap}
+            bumpScale={0.04}
+            color={isDonington ? '#22c55e' : '#ffffff'}
+            roughness={0.9}
+          />
+        )}
+      </mesh>
+
+      {/* Layer 3: Rolling Horizon Hills */}
+      <instancedMesh ref={hillsRef} args={[undefined, undefined, 36]}>
+        <coneGeometry args={[1, 1, 7]} />
         <meshToonMaterial
-          color={
-            isPhoenix
-              ? '#ca8a04'
-              : isStreet
-                ? '#334155'
-                : isDonington
-                  ? '#15803d'
-                  : '#166534'
-          }
+          color={isPhoenix ? '#92400e' : isStreet ? '#1e293b' : '#15803d'}
           gradientMap={gradientMap}
         />
-      </mesh>
+      </instancedMesh>
+
+      {/* Layer 3: Varied Autodrome Trees */}
+      {!isStreet && (
+        <>
+          <instancedMesh ref={bgTreesTrunkRef} args={[undefined, undefined, 64]}>
+            <cylinderGeometry args={[0.35, 0.5, 3.6, 6]} />
+            <meshToonMaterial color="#78350f" gradientMap={gradientMap} />
+          </instancedMesh>
+          <instancedMesh ref={bgTreesTopRef} args={[undefined, undefined, 64]}>
+            <coneGeometry args={[2.7, 6.2, 7]} />
+            <meshToonMaterial color="#166534" gradientMap={gradientMap} />
+          </instancedMesh>
+        </>
+      )}
 
       {/* Runoff gravel traps for Estoril, Interlagos, Suzuka */}
       {(isEstoril || isInterlagos || isSuzuka) && (
@@ -314,17 +480,30 @@ function CircuitScenery({ stage }: { stage: StageConfig }) {
         </>
       )}
 
-      {/* Race Asphalt */}
+      {/* Race Asphalt with Roughness Map (puddles) + Bump Map */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, -trackLength / 2]} receiveShadow>
         <planeGeometry args={[26, trackLength + 200]} />
         <meshStandardMaterial
-          color={stage.weather.wetAsphalt ? '#111827' : '#27272a'}
-          roughness={stage.weather.wetAsphalt ? 0.14 : 0.82}
-          metalness={stage.weather.wetAsphalt ? 0.48 : 0.1}
+          map={asphaltSet.map}
+          roughnessMap={asphaltSet.roughnessMap}
+          bumpMap={asphaltSet.bumpMap}
+          bumpScale={0.035}
+          roughness={stage.weather.wetAsphalt ? 0.72 : 0.92}
+          metalness={stage.weather.wetAsphalt ? 0.38 : 0.08}
         />
       </mesh>
 
-      {/* White Track Borders */}
+      {/* Starting Grid Slots & Launch Rubber Marks */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.012, -16]}>
+        <planeGeometry args={[20, 30]} />
+        <meshBasicMaterial map={gridTex} transparent opacity={0.88} />
+      </mesh>
+
+      {/* Pit Lane Yellow Line + White Track Borders */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[-9.8, 0.01, -trackLength / 2]}>
+        <planeGeometry args={[0.24, trackLength + 200]} />
+        <meshBasicMaterial color="#facc15" transparent opacity={0.5} />
+      </mesh>
       {([-1, 1] as const).map((side) => (
         <mesh
           key={`border-${side}`}
@@ -336,17 +515,17 @@ function CircuitScenery({ stage }: { stage: StageConfig }) {
         </mesh>
       ))}
 
-      {/* Kerbs */}
+      {/* Layer 1: Raised 3D Kerbs */}
       <instancedMesh ref={kerbLeftRef} args={[undefined, undefined, kerbCount]}>
-        <boxGeometry args={[1.4, 0.04, 15.8]} />
-        <meshToonMaterial gradientMap={gradientMap} />
+        <boxGeometry args={[1.4, 0.06, 15.8]} />
+        <meshStandardMaterial roughness={0.65} />
       </instancedMesh>
       <instancedMesh ref={kerbRightRef} args={[undefined, undefined, kerbCount]}>
-        <boxGeometry args={[1.4, 0.04, 15.8]} />
-        <meshToonMaterial gradientMap={gradientMap} />
+        <boxGeometry args={[1.4, 0.06, 15.8]} />
+        <meshStandardMaterial roughness={0.65} />
       </instancedMesh>
 
-      {/* Barriers / Guard-rails */}
+      {/* Layer 1: Barriers, Metallic Posts & Stacked Tire Walls */}
       {([-1, 1] as const).map((side) => (
         <mesh
           key={`wall-${side}`}
@@ -354,15 +533,52 @@ function CircuitScenery({ stage }: { stage: StageConfig }) {
           castShadow
           receiveShadow
         >
-          <boxGeometry args={[isPhoenix ? 0.7 : 0.45, isPhoenix ? 1.0 : 1.25, trackLength + 200]} />
-          <meshToonMaterial
-            color={isPhoenix ? '#cbd5e1' : isMonaco ? '#94a3b8' : '#52525b'}
-            gradientMap={gradientMap}
+          <boxGeometry args={[isPhoenix ? 0.7 : 0.4, isPhoenix ? 1.0 : 0.9, trackLength + 200]} />
+          <meshStandardMaterial
+            color={isPhoenix ? '#cbd5e1' : isMonaco ? '#94a3b8' : '#64748b'}
+            roughness={0.4}
+            metalness={isPhoenix ? 0.15 : 0.65}
           />
         </mesh>
       ))}
+      <instancedMesh ref={railPostsRef} args={[undefined, undefined, 210]}>
+        <boxGeometry args={[0.22, 1.2, 0.22]} />
+        <meshStandardMaterial color="#27272a" roughness={0.5} metalness={0.7} />
+      </instancedMesh>
+      <instancedMesh ref={tireWallRef} args={[undefined, undefined, 80]} castShadow>
+        <cylinderGeometry args={[0.62, 0.62, 0.5, 14]} />
+        <meshStandardMaterial roughness={0.85} />
+      </instancedMesh>
 
-      {/* Buildings / Grandstands */}
+      {/* Layer 1: Braking Distance Boards (150m, 100m, 50m) & Retro Sponsor Hoardings */}
+      {markerAnchors
+        .filter((z) => Math.abs(z) < stage.raceDistance - 80)
+        .map((anchorZ, idx) => (
+          <group key={`markers-${anchorZ}`}>
+            <mesh position={[-14.2, 1.3, anchorZ + 100]}>
+              <planeGeometry args={[2.2, 1.1]} />
+              <meshBasicMaterial map={brake150Tex} />
+            </mesh>
+            <mesh position={[-14.2, 1.3, anchorZ + 50]}>
+              <planeGeometry args={[2.2, 1.1]} />
+              <meshBasicMaterial map={brake100Tex} />
+            </mesh>
+            <mesh position={[-14.2, 1.3, anchorZ]}>
+              <planeGeometry args={[2.2, 1.1]} />
+              <meshBasicMaterial map={brake50Tex} />
+            </mesh>
+            <mesh position={[hasHarbor ? -16.8 : 16.8, 1.4, anchorZ + 25]}>
+              <planeGeometry args={[7.4, 1.8]} />
+              <meshBasicMaterial map={sponsorTextures[idx % sponsorTextures.length]} />
+            </mesh>
+          </group>
+        ))}
+
+      {/* Layer 2: Lighting Poles & Covered Grandstands */}
+      <instancedMesh ref={lampPolesRef} args={[undefined, undefined, 48]}>
+        <boxGeometry args={[0.35, 9, 0.35]} />
+        <meshStandardMaterial color="#3f3f46" roughness={0.5} metalness={0.6} />
+      </instancedMesh>
       <instancedMesh ref={leftBlocksRef} args={[undefined, undefined, blockCount]} castShadow>
         <boxGeometry args={[1, 1, 1]} />
         <meshToonMaterial gradientMap={gradientMap} />
@@ -371,6 +587,12 @@ function CircuitScenery({ stage }: { stage: StageConfig }) {
         <boxGeometry args={[1, 1, 1]} />
         <meshToonMaterial gradientMap={gradientMap} />
       </instancedMesh>
+      {!isStreet && (
+        <instancedMesh ref={canopyRef} args={[undefined, undefined, blockCount]} castShadow>
+          <boxGeometry args={[1, 1, 1]} />
+          <meshStandardMaterial color="#e2e8f0" roughness={0.4} metalness={0.35} />
+        </instancedMesh>
+      )}
 
       {/* Estoril & Interlagos Timing / Broadcast Towers */}
       {(isEstoril || isInterlagos) && (
@@ -406,17 +628,6 @@ function CircuitScenery({ stage }: { stage: StageConfig }) {
             </mesh>
           </group>
         ))}
-
-      {/* Interlagos & Donington Rolling Green Hills */}
-      {(isInterlagos || isDonington) && (
-        <instancedMesh ref={hillsRef} args={[undefined, undefined, 20]}>
-          <coneGeometry args={[1, 1, 8]} />
-          <meshToonMaterial
-            color={isDonington ? '#15803d' : '#16a34a'}
-            gradientMap={gradientMap}
-          />
-        </instancedMesh>
-      )}
 
       {/* Phoenix Stylized Palm Trees */}
       {isPhoenix && (
@@ -485,7 +696,12 @@ function CircuitScenery({ stage }: { stage: StageConfig }) {
           {[-65, -32, 0, 32, 65].map((tz) => (
             <mesh key={tz} position={[0, 6.4, tz]}>
               <boxGeometry args={[6, 0.15, 2.2]} />
-              <meshStandardMaterial color="#fde68a" emissive="#f59e0b" emissiveIntensity={3.2} />
+              <meshStandardMaterial
+                color="#fde68a"
+                emissive="#f59e0b"
+                emissiveIntensity={3.5}
+                toneMapped={false}
+              />
             </mesh>
           ))}
         </group>
@@ -496,7 +712,7 @@ function CircuitScenery({ stage }: { stage: StageConfig }) {
         <group>
           <mesh rotation={[-Math.PI / 2, 0, 0]} position={[135, -0.02, -720]}>
             <planeGeometry args={[240, 1600]} />
-            <meshStandardMaterial color="#0284c7" roughness={0.12} metalness={0.65} />
+            <meshStandardMaterial color="#0284c7" roughness={0.1} metalness={0.78} />
           </mesh>
           {[-180, -340, -740, -960, -1180].map((bz, idx) => (
             <group key={bz} position={[30 + (idx % 3) * 14, 0.7, bz]}>

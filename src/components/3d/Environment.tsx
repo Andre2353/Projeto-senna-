@@ -1,4 +1,5 @@
 import { useMemo, useRef } from 'react';
+import { Environment as DreiEnvironment, Lightformer } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { CORRIDOR_END_Z, STAGES } from '../../data/sennaData';
@@ -64,8 +65,8 @@ export function Environment() {
     let desiredMid = '#1e293b';
     let desiredHorizon = '#d97706';
     let desiredFog = '#1e1b18';
-    let fogNear = 65;
-    let fogFar = 540;
+    let fogNear = 85;
+    let fogFar = 640;
     let sunVisible = true;
     let sunHex = '#facc15';
 
@@ -79,17 +80,15 @@ export function Environment() {
       sunVisible = activeStage.weather.rain < 0.5;
       sunHex = activeStage.weather.sunColor;
     } else if (mode === 'open_world' || mode === 'credits') {
-      // Vibrant cartoon sunset gradient: blue/purple zenith -> coral/orange -> golden horizon
       desiredTop = '#1d4ed8';
       desiredMid = '#7e22ce';
       desiredHorizon = '#fb923c';
       desiredFog = '#fdba74';
-      fogNear = 180;
-      fogFar = 920;
+      fogNear = 210;
+      fogFar = 980;
       sunVisible = true;
       sunHex = '#fef08a';
     } else {
-      // Landing & Corridor: indigo sky transitioning toward golden sunset at Z = -950
       const progress = Math.min(
         1,
         Math.max(0, Math.abs(gameRuntime.position.z) / Math.abs(CORRIDOR_END_Z))
@@ -98,8 +97,8 @@ export function Environment() {
       desiredMid = progress > 0.7 ? '#6d28d9' : '#1e293b';
       desiredHorizon = progress > 0.7 ? '#fb923c' : '#d97706';
       desiredFog = progress > 0.7 ? '#b45309' : '#1c1917';
-      fogNear = 85;
-      fogFar = 580;
+      fogNear = 95;
+      fogFar = 640;
       sunVisible = true;
       sunHex = '#facc15';
     }
@@ -139,7 +138,7 @@ export function Environment() {
       horizonGroupRef.current.position.set(
         gameRuntime.position.x,
         0,
-        gameRuntime.position.z - 620
+        gameRuntime.position.z - 680
       );
       horizonGroupRef.current.visible = sunVisible;
     }
@@ -153,10 +152,45 @@ export function Environment() {
   return (
     <>
       <color attach="background" args={['#0f172a']} />
-      <fog attach="fog" args={['#1c1917', 85, 580]} />
+      <fog attach="fog" args={['#1c1917', 95, 640]} />
 
-      {/* Cartoon Sunset Gradient Sky Dome */}
-      <mesh ref={skyDomeRef} scale={[1150, 1150, 1150]} frustumCulled={false}>
+      {/* Studio IBL Environment Map for real reflections on car clearcoat, visor & wet asphalt */}
+      <DreiEnvironment resolution={256} frames={1}>
+        <Lightformer
+          form="rect"
+          intensity={2.4}
+          color="#fffbeb"
+          scale={[18, 4, 1]}
+          position={[0, 12, -10]}
+          rotation={[Math.PI / 3, 0, 0]}
+        />
+        <Lightformer
+          form="rect"
+          intensity={1.6}
+          color="#38bdf8"
+          scale={[24, 6, 1]}
+          position={[-14, 8, 4]}
+          rotation={[0, Math.PI / 2, 0]}
+        />
+        <Lightformer
+          form="rect"
+          intensity={1.8}
+          color="#fb923c"
+          scale={[24, 6, 1]}
+          position={[14, 6, -4]}
+          rotation={[0, -Math.PI / 2, 0]}
+        />
+        <Lightformer
+          form="ring"
+          intensity={1.4}
+          color="#facc15"
+          scale={12}
+          position={[0, 3, -24]}
+        />
+      </DreiEnvironment>
+
+      {/* Sky Dome Gradient */}
+      <mesh ref={skyDomeRef} scale={[1450, 1450, 1450]} frustumCulled={false}>
         <sphereGeometry args={[1, 32, 24]} />
         <shaderMaterial
           vertexShader={SKY_VERTEX_SHADER}
@@ -169,13 +203,13 @@ export function Environment() {
       </mesh>
 
       {/* Golden Horizon Sun & Halo */}
-      <group ref={horizonGroupRef} position={[0, 0, -620]}>
-        <mesh position={[0, 62, 0]}>
-          <circleGeometry args={[68, 48]} />
+      <group ref={horizonGroupRef} position={[0, 0, -680]}>
+        <mesh position={[0, 68, 0]}>
+          <circleGeometry args={[72, 48]} />
           <meshBasicMaterial ref={sunDiscMatRef} color="#fde047" transparent opacity={0.92} fog={false} />
         </mesh>
-        <mesh position={[0, 62, -2]}>
-          <circleGeometry args={[145, 48]} />
+        <mesh position={[0, 68, -2]}>
+          <circleGeometry args={[155, 48]} />
           <meshBasicMaterial color="#fb923c" transparent opacity={0.24} fog={false} />
         </mesh>
       </group>

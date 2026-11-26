@@ -2,46 +2,171 @@ import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { DEFAULT_MCLAREN_LIVERY, STAGES } from '../../data/sennaData';
+import { useGameStore } from '../../store/useGameStore';
 import type { CarLivery } from '../../types/game';
-import { getToonGradientMap } from '../../utils/performance';
+import {
+  createCarNumberPlateTexture,
+  createSennaHelmetTexture,
+  createTireSidewallTexture,
+} from '../../utils/proceduralTextures';
 import { gameRuntime } from '../../utils/runtime';
 
 interface FormulaChassisProps {
   livery: CarLivery;
   isSennaHelmet?: boolean;
   rearLightRef?: React.RefObject<THREE.MeshStandardMaterial | null>;
-  primaryMatRef?: React.RefObject<THREE.MeshToonMaterial | null>;
-  secondaryMatRef?: React.RefObject<THREE.MeshToonMaterial | null>;
-  accentMatRef?: React.RefObject<THREE.MeshToonMaterial | null>;
+  primaryMatRef?: React.RefObject<THREE.MeshPhysicalMaterial | null>;
+  secondaryMatRef?: React.RefObject<THREE.MeshPhysicalMaterial | null>;
+  accentMatRef?: React.RefObject<THREE.MeshPhysicalMaterial | null>;
   frontLeftSteerRef?: React.RefObject<THREE.Group | null>;
   frontRightSteerRef?: React.RefObject<THREE.Group | null>;
   wheelSpinRefs?: React.MutableRefObject<(THREE.Group | null)[]>;
 }
 
 function createBodyworkCowlingGeometry(): THREE.ExtrudeGeometry {
-  // Sleek side-view silhouette of an 80s/90s F1 monocoque + engine cover
   const shape = new THREE.Shape();
-  shape.moveTo(-2.3, 0.16);
-  shape.lineTo(-1.35, 0.28);
-  shape.lineTo(-0.55, 0.44);
+  shape.moveTo(-1.72, 0.14);
+  shape.quadraticCurveTo(-1.15, 0.34, -0.58, 0.45);
   shape.lineTo(0.05, 0.44);
-  shape.lineTo(0.22, 0.84); // roll hoop peak
-  shape.lineTo(0.88, 0.72);
-  shape.lineTo(1.75, 0.46);
-  shape.lineTo(1.85, 0.18);
+  shape.quadraticCurveTo(0.16, 0.88, 0.28, 0.87);
+  shape.quadraticCurveTo(0.88, 0.78, 1.56, 0.46);
+  shape.lineTo(1.88, 0.25);
+  shape.lineTo(1.86, 0.14);
   shape.closePath();
 
   const geo = new THREE.ExtrudeGeometry(shape, {
     depth: 0.46,
     bevelEnabled: true,
-    bevelThickness: 0.06,
-    bevelSize: 0.05,
-    bevelSegments: 2,
+    bevelThickness: 0.08,
+    bevelSize: 0.06,
+    bevelSegments: 3,
+    curveSegments: 12,
   });
   geo.rotateY(Math.PI / 2);
   geo.translate(-0.23, 0, 0);
   geo.computeVertexNormals();
   return geo;
+}
+
+function createSidepodGeometry(): THREE.ExtrudeGeometry {
+  const shape = new THREE.Shape();
+  shape.moveTo(-0.88, 0.12);
+  shape.lineTo(-0.88, 0.41);
+  shape.quadraticCurveTo(-0.25, 0.44, 0.42, 0.38);
+  shape.quadraticCurveTo(0.82, 0.32, 0.96, 0.16);
+  shape.lineTo(0.96, 0.12);
+  shape.closePath();
+
+  const geo = new THREE.ExtrudeGeometry(shape, {
+    depth: 0.36,
+    bevelEnabled: true,
+    bevelThickness: 0.06,
+    bevelSize: 0.05,
+    bevelSegments: 3,
+    curveSegments: 10,
+  });
+  geo.rotateY(Math.PI / 2);
+  geo.translate(-0.18, 0, 0);
+  geo.computeVertexNormals();
+  return geo;
+}
+
+function createNoseLatheGeometry(): THREE.LatheGeometry {
+  const pts: THREE.Vector2[] = [
+    new THREE.Vector2(0.01, -0.78),
+    new THREE.Vector2(0.08, -0.72),
+    new THREE.Vector2(0.14, -0.45),
+    new THREE.Vector2(0.2, -0.05),
+    new THREE.Vector2(0.25, 0.38),
+    new THREE.Vector2(0.28, 0.74),
+  ];
+  const geo = new THREE.LatheGeometry(pts, 18);
+  geo.rotateX(Math.PI / 2);
+  geo.scale(1.08, 0.74, 1);
+  geo.computeVertexNormals();
+  return geo;
+}
+
+function DetailedWheel({
+  radius,
+  width,
+  sideSign,
+  tireTreadMat,
+  tireSidewallMat,
+  rimMat,
+  brakeRotorMat,
+  caliperMat,
+  spinRef,
+}: {
+  radius: number;
+  width: number;
+  sideSign: -1 | 1;
+  tireTreadMat: THREE.MeshStandardMaterial;
+  tireSidewallMat: THREE.MeshStandardMaterial;
+  rimMat: THREE.MeshStandardMaterial;
+  brakeRotorMat: THREE.MeshStandardMaterial;
+  caliperMat: THREE.MeshStandardMaterial;
+  spinRef: (el: THREE.Group | null) => void;
+}) {
+  const spokeAngles = [0, 1, 2, 3, 4].map((i) => (i / 5) * Math.PI * 2);
+
+  return (
+    <group>
+      {/* Static Brake Rotor + Caliper inside hub */}
+      <mesh
+        position={[-sideSign * (width * 0.25), 0, 0]}
+        rotation={[0, 0, Math.PI / 2]}
+        material={brakeRotorMat}
+      >
+        <cylinderGeometry args={[radius * 0.52, radius * 0.52, 0.04, 20]} />
+      </mesh>
+      <mesh position={[-sideSign * (width * 0.25), radius * 0.35, 0]} material={caliperMat}>
+        <boxGeometry args={[0.07, 0.11, 0.12]} />
+      </mesh>
+
+      {/* Spinning Tire & Rim */}
+      <group ref={spinRef}>
+        <mesh rotation={[0, 0, Math.PI / 2]} castShadow material={tireTreadMat}>
+          <cylinderGeometry args={[radius, radius, width, 28]} />
+        </mesh>
+
+        {/* Outer & inner sidewalls with Goodyear-style yellow/white arcs */}
+        <mesh
+          position={[sideSign * (width * 0.502), 0, 0]}
+          rotation={[0, sideSign > 0 ? Math.PI / 2 : -Math.PI / 2, 0]}
+          material={tireSidewallMat}
+        >
+          <circleGeometry args={[radius * 0.99, 28]} />
+        </mesh>
+
+        {/* Recessed Rim Barrel */}
+        <mesh rotation={[0, 0, Math.PI / 2]} material={rimMat}>
+          <cylinderGeometry args={[radius * 0.54, radius * 0.54, width * 1.01, 20]} />
+        </mesh>
+
+        {/* Center-lock Hub Nut */}
+        <mesh
+          position={[sideSign * (width * 0.515), 0, 0]}
+          rotation={[0, 0, Math.PI / 2]}
+          material={caliperMat}
+        >
+          <cylinderGeometry args={[0.045, 0.055, 0.04, 12]} />
+        </mesh>
+
+        {/* 5 Rim Spokes */}
+        {spokeAngles.map((ang, idx) => (
+          <mesh
+            key={idx}
+            position={[sideSign * (width * 0.508), 0, 0]}
+            rotation={[ang, 0, 0]}
+            material={rimMat}
+          >
+            <boxGeometry args={[0.02, radius * 0.92, 0.035]} />
+          </mesh>
+        ))}
+      </group>
+    </group>
+  );
 }
 
 export function FormulaChassis({
@@ -55,42 +180,71 @@ export function FormulaChassis({
   frontRightSteerRef,
   wheelSpinRefs,
 }: FormulaChassisProps) {
-  const gradientMap = useMemo(() => getToonGradientMap(), []);
   const cowlingGeo = useMemo(() => createBodyworkCowlingGeometry(), []);
+  const sidepodGeo = useMemo(() => createSidepodGeometry(), []);
+  const noseGeo = useMemo(() => createNoseLatheGeometry(), []);
 
-  const outlineMat = useMemo(
+  const tireSidewallTex = useMemo(() => createTireSidewallTexture(), []);
+  const sennaHelmetTex = useMemo(() => createSennaHelmetTexture(), []);
+  const numberPlateTex = useMemo(() => createCarNumberPlateTexture(livery), [livery]);
+
+  const tireTreadMat = useMemo(
     () =>
-      new THREE.MeshBasicMaterial({
-        color: '#09090b',
-        side: THREE.BackSide,
+      new THREE.MeshStandardMaterial({
+        color: '#141417',
+        roughness: 0.86,
+        metalness: 0.06,
       }),
     []
   );
 
-  const tireMat = useMemo(
+  const tireSidewallMat = useMemo(
     () =>
-      new THREE.MeshToonMaterial({
-        color: '#18181b',
-        gradientMap,
+      new THREE.MeshStandardMaterial({
+        map: tireSidewallTex,
+        roughness: 0.78,
+        metalness: 0.08,
       }),
-    [gradientMap]
+    [tireSidewallTex]
   );
 
   const carbonMat = useMemo(
     () =>
-      new THREE.MeshToonMaterial({
-        color: '#27272a',
-        gradientMap,
+      new THREE.MeshPhysicalMaterial({
+        color: '#18181b',
+        roughness: 0.42,
+        metalness: 0.45,
+        clearcoat: 0.25,
       }),
-    [gradientMap]
+    []
   );
 
   const rimMat = useMemo(
     () =>
       new THREE.MeshStandardMaterial({
         color: '#e4e4e7',
-        roughness: 0.25,
-        metalness: 0.82,
+        roughness: 0.22,
+        metalness: 0.88,
+      }),
+    []
+  );
+
+  const brakeRotorMat = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        color: '#71717a',
+        roughness: 0.35,
+        metalness: 0.92,
+      }),
+    []
+  );
+
+  const caliperMat = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        color: '#eab308',
+        roughness: 0.3,
+        metalness: 0.75,
       }),
     []
   );
@@ -98,12 +252,36 @@ export function FormulaChassis({
   useEffect(() => {
     return () => {
       cowlingGeo.dispose();
-      outlineMat.dispose();
-      tireMat.dispose();
+      sidepodGeo.dispose();
+      noseGeo.dispose();
+      tireSidewallTex.dispose();
+      sennaHelmetTex.dispose();
+      tireTreadMat.dispose();
+      tireSidewallMat.dispose();
       carbonMat.dispose();
       rimMat.dispose();
+      brakeRotorMat.dispose();
+      caliperMat.dispose();
     };
-  }, [carbonMat, cowlingGeo, outlineMat, rimMat, tireMat]);
+  }, [
+    brakeRotorMat,
+    caliperMat,
+    carbonMat,
+    cowlingGeo,
+    noseGeo,
+    rimMat,
+    sennaHelmetTex,
+    sidepodGeo,
+    tireSidewallMat,
+    tireSidewallTex,
+    tireTreadMat,
+  ]);
+
+  useEffect(() => {
+    return () => {
+      numberPlateTex.dispose();
+    };
+  }, [numberPlateTex]);
 
   const setWheelRef = (index: number) => (el: THREE.Group | null) => {
     if (wheelSpinRefs) {
@@ -113,259 +291,360 @@ export function FormulaChassis({
 
   return (
     <group>
-      {/* Low Venturi Floorplank & Rear Diffuser */}
-      <mesh position={[0, 0.11, 0.15]} castShadow receiveShadow material={carbonMat}>
-        <boxGeometry args={[1.38, 0.05, 3.8]} />
+      {/* Low Venturi Floorplank & Diffuser with Vertical Strakes */}
+      <mesh position={[0, 0.1, 0.14]} castShadow receiveShadow material={carbonMat}>
+        <boxGeometry args={[1.42, 0.045, 3.85]} />
       </mesh>
-      <mesh position={[0, 0.17, 2.02]} rotation={[0.26, 0, 0]} castShadow material={carbonMat}>
-        <boxGeometry args={[1.08, 0.07, 0.54]} />
+      <mesh position={[0, 0.16, 2.04]} rotation={[0.25, 0, 0]} castShadow material={carbonMat}>
+        <boxGeometry args={[1.12, 0.05, 0.52]} />
       </mesh>
+      {[-0.36, -0.12, 0.12, 0.36].map((strakeX) => (
+        <mesh key={strakeX} position={[strakeX, 0.16, 2.08]} material={carbonMat}>
+          <boxGeometry args={[0.025, 0.16, 0.44]} />
+        </mesh>
+      ))}
 
-      {/* Sculpted Central Monocoque + Engine Cover Cowling */}
+      {/* Twin Metallic Rear Exhaust Pipes */}
+      {([-0.14, 0.14] as const).map((exX) => (
+        <mesh
+          key={exX}
+          position={[exX, 0.28, 1.98]}
+          rotation={[Math.PI / 2 - 0.1, 0, 0]}
+          material={rimMat}
+        >
+          <cylinderGeometry args={[0.036, 0.042, 0.36, 12]} />
+        </mesh>
+      ))}
+
+      {/* Sculpted Beveled Monocoque & Engine Cover Cowling */}
       <mesh geometry={cowlingGeo} castShadow receiveShadow>
-        <meshToonMaterial ref={primaryMatRef} color={livery.primary} gradientMap={gradientMap} />
-      </mesh>
-      <mesh geometry={cowlingGeo} scale={[1.045, 1.045, 1.015]} material={outlineMat} />
-
-      {/* Tapered Cylindrical Nose Cone */}
-      <mesh
-        position={[0, 0.26, -1.68]}
-        rotation={[Math.PI / 2 - 0.08, 0, 0]}
-        castShadow
-        receiveShadow
-      >
-        <cylinderGeometry args={[0.13, 0.31, 1.45, 16]} />
-        <meshToonMaterial ref={secondaryMatRef} color={livery.secondary} gradientMap={gradientMap} />
-      </mesh>
-      <mesh
-        position={[0, 0.26, -1.68]}
-        rotation={[Math.PI / 2 - 0.08, 0, 0]}
-        scale={[1.06, 1.01, 1.06]}
-        material={outlineMat}
-      >
-        <cylinderGeometry args={[0.13, 0.31, 1.45, 16]} />
+        <meshPhysicalMaterial
+          ref={primaryMatRef}
+          color={livery.primary}
+          roughness={0.22}
+          metalness={0.32}
+          clearcoat={1.0}
+          clearcoatRoughness={0.08}
+        />
       </mesh>
 
-      {/* Sculpted Engine Cover Livery Stripe */}
-      <mesh position={[0, 0.56, 0.96]} rotation={[-0.24, 0, 0]} castShadow>
-        <cylinderGeometry args={[0.18, 0.28, 1.35, 14]} />
-        <meshToonMaterial color={livery.secondary} gradientMap={gradientMap} />
+      {/* Smooth Lathe Tapered Nose Cone */}
+      <mesh position={[0, 0.25, -1.78]} geometry={noseGeo} castShadow receiveShadow>
+        <meshPhysicalMaterial
+          ref={secondaryMatRef}
+          color={livery.secondary}
+          roughness={0.22}
+          metalness={0.32}
+          clearcoat={1.0}
+          clearcoatRoughness={0.08}
+        />
+      </mesh>
+
+      {/* Nose Top Racing Number Roundel */}
+      <mesh position={[0, 0.405, -1.25]} rotation={[-Math.PI / 2 + 0.08, 0, 0]}>
+        <planeGeometry args={[0.38, 0.38]} />
+        <meshPhysicalMaterial map={numberPlateTex} roughness={0.22} clearcoat={0.9} />
+      </mesh>
+
+      {/* Engine Cover Secondary Livery Dorsal Accent */}
+      <mesh position={[0, 0.56, 0.92]} rotation={[-0.26, 0, 0]} castShadow>
+        <cylinderGeometry args={[0.17, 0.25, 1.25, 16]} />
+        <meshPhysicalMaterial
+          color={livery.secondary}
+          roughness={0.22}
+          metalness={0.32}
+          clearcoat={1.0}
+          clearcoatRoughness={0.08}
+        />
       </mesh>
 
       {/* Airbox Intake Scoop */}
-      <mesh position={[0, 0.83, 0.16]} material={carbonMat}>
-        <cylinderGeometry args={[0.11, 0.13, 0.22, 12]} />
+      <mesh position={[0, 0.82, 0.14]} material={carbonMat}>
+        <cylinderGeometry args={[0.115, 0.13, 0.24, 14]} />
       </mesh>
 
-      {/* Sculpted Coke-Bottle Sidepods (Left & Right) */}
+      {/* Sculpted Beveled Sidepods (Left & Right) */}
       {([-1, 1] as const).map((side) => (
-        <group key={side} position={[side * 0.52, 0.28, 0.45]}>
-          <mesh rotation={[Math.PI / 2, 0, side * -0.06]} castShadow receiveShadow>
-            <cylinderGeometry args={[0.2, 0.27, 1.85, 14]} />
-            <meshToonMaterial color={livery.primary} gradientMap={gradientMap} />
-          </mesh>
-          <mesh
-            rotation={[Math.PI / 2, 0, side * -0.06]}
-            scale={[1.06, 1.01, 1.06]}
-            material={outlineMat}
-          >
-            <cylinderGeometry args={[0.2, 0.27, 1.85, 14]} />
+        <group key={side} position={[side * 0.52, 0.02, 0.46]}>
+          <mesh geometry={sidepodGeo} castShadow receiveShadow>
+            <meshPhysicalMaterial
+              color={livery.primary}
+              roughness={0.22}
+              metalness={0.3}
+              clearcoat={1.0}
+              clearcoatRoughness={0.08}
+            />
           </mesh>
           {/* Sidepod livery accent band */}
-          <mesh position={[side * 0.03, 0.04, 0.12]} rotation={[Math.PI / 2, 0, 0]} castShadow>
-            <cylinderGeometry args={[0.17, 0.22, 1.15, 12]} />
-            <meshToonMaterial color={livery.secondary} gradientMap={gradientMap} />
+          <mesh position={[side * 0.19, 0.28, 0.05]}>
+            <boxGeometry args={[0.04, 0.16, 1.32]} />
+            <meshPhysicalMaterial
+              color={livery.secondary}
+              roughness={0.22}
+              clearcoat={1.0}
+            />
           </mesh>
-          {/* Dark radiator air intake */}
-          <mesh position={[0, 0, -0.93]} material={carbonMat}>
-            <boxGeometry args={[0.34, 0.2, 0.06]} />
+          {/* Dark radiator intake opening */}
+          <mesh position={[0, 0.27, -0.92]} material={carbonMat}>
+            <boxGeometry args={[0.36, 0.22, 0.06]} />
           </mesh>
         </group>
       ))}
 
-      {/* Open Cockpit Tub & Steering Wheel */}
-      <mesh position={[0, 0.48, -0.18]} material={carbonMat}>
+      {/* Twin Stalked Wing Mirrors */}
+      {([-1, 1] as const).map((side) => (
+        <group key={`mirror-${side}`} position={[side * 0.42, 0.53, -0.52]}>
+          <mesh position={[-side * 0.06, -0.04, 0]} rotation={[0, 0, side * -0.5]} material={carbonMat}>
+            <cylinderGeometry args={[0.012, 0.012, 0.12, 6]} />
+          </mesh>
+          <mesh castShadow>
+            <boxGeometry args={[0.13, 0.07, 0.08]} />
+            <meshPhysicalMaterial color={livery.secondary} roughness={0.2} clearcoat={1.0} />
+          </mesh>
+        </group>
+      ))}
+
+      {/* Cockpit Interior: Seat, Red Harness Straps & Steering Wheel */}
+      <mesh position={[0, 0.46, -0.18]} material={carbonMat}>
         <boxGeometry args={[0.42, 0.08, 0.72]} />
       </mesh>
+      {([-0.08, 0.08] as const).map((strapX) => (
+        <mesh
+          key={strapX}
+          position={[strapX, 0.51, -0.06]}
+          rotation={[0.45, 0, 0]}
+        >
+          <boxGeometry args={[0.045, 0.18, 0.02]} />
+          <meshStandardMaterial color="#dc2626" roughness={0.7} />
+        </mesh>
+      ))}
       <mesh position={[0, 0.51, -0.44]} rotation={[0.35, 0, 0]} material={carbonMat}>
-        <cylinderGeometry args={[0.1, 0.1, 0.025, 12]} />
+        <cylinderGeometry args={[0.1, 0.1, 0.025, 14]} />
       </mesh>
 
-      {/* Driver Helmet (Senna Iconic Yellow/Green/Blue) */}
+      {/* Detailed Senna Helmet & Mirrored Visor */}
       <group position={[0, 0.65, -0.08]}>
-        <mesh castShadow>
-          <sphereGeometry args={[0.17, 20, 16]} />
-          <meshToonMaterial
-            color={isSennaHelmet ? '#FACC15' : livery.accent}
-            gradientMap={gradientMap}
+        <mesh rotation={[0, -Math.PI / 2, 0]} castShadow>
+          <sphereGeometry args={[0.17, 24, 18]} />
+          <meshPhysicalMaterial
+            map={isSennaHelmet ? sennaHelmetTex : undefined}
+            color={isSennaHelmet ? '#ffffff' : livery.accent}
+            roughness={0.14}
+            metalness={0.25}
+            clearcoat={1.0}
+            clearcoatRoughness={0.05}
           />
         </mesh>
-        <mesh scale={[1.06, 1.06, 1.06]} material={outlineMat}>
-          <sphereGeometry args={[0.17, 16, 12]} />
-        </mesh>
-        {isSennaHelmet && (
-          <>
-            <mesh position={[0, 0.01, 0.01]} rotation={[0.08, 0, 0]}>
-              <cylinderGeometry args={[0.174, 0.174, 0.03, 20]} />
-              <meshToonMaterial color="#16A34A" gradientMap={gradientMap} />
-            </mesh>
-            <mesh position={[0, -0.03, 0.01]} rotation={[0.08, 0, 0]}>
-              <cylinderGeometry args={[0.173, 0.173, 0.024, 20]} />
-              <meshToonMaterial color="#1D4ED8" gradientMap={gradientMap} />
-            </mesh>
-          </>
-        )}
+        {/* Mirrored dark visor */}
         <mesh position={[0, 0.02, -0.125]} rotation={[0.15, 0, 0]}>
-          <boxGeometry args={[0.23, 0.07, 0.09]} />
-          <meshStandardMaterial color="#09090B" roughness={0.12} metalness={0.85} />
+          <boxGeometry args={[0.23, 0.07, 0.095]} />
+          <meshStandardMaterial color="#09090b" roughness={0.08} metalness={0.92} />
         </mesh>
       </group>
 
-      {/* Front Wing Assembly (Low, wide, sculpted endplates) */}
-      <group position={[0, 0.14, -2.35]}>
+      {/* Front Wing Assembly (Multi-plane + endplates) */}
+      <group position={[0, 0.13, -2.38]}>
         <mesh castShadow receiveShadow>
-          <boxGeometry args={[1.96, 0.035, 0.42]} />
-          <meshToonMaterial color={livery.primary} gradientMap={gradientMap} />
+          <boxGeometry args={[1.98, 0.032, 0.44]} />
+          <meshPhysicalMaterial color={livery.primary} roughness={0.22} clearcoat={1.0} />
         </mesh>
-        <mesh position={[0, 0.04, 0.08]} rotation={[-0.2, 0, 0]} castShadow>
-          <boxGeometry args={[1.88, 0.025, 0.18]} />
-          <meshToonMaterial ref={accentMatRef} color={livery.accent} gradientMap={gradientMap} />
+        <mesh position={[0, 0.042, 0.09]} rotation={[-0.22, 0, 0]} castShadow>
+          <boxGeometry args={[1.9, 0.026, 0.19]} />
+          <meshPhysicalMaterial
+            ref={accentMatRef}
+            color={livery.accent}
+            roughness={0.24}
+            clearcoat={1.0}
+          />
         </mesh>
         {([-1, 1] as const).map((side) => (
-          <mesh key={side} position={[side * 0.98, 0.065, 0]} castShadow material={carbonMat}>
-            <boxGeometry args={[0.04, 0.16, 0.48]} />
+          <mesh key={side} position={[side * 0.99, 0.075, 0]} castShadow material={carbonMat}>
+            <boxGeometry args={[0.04, 0.18, 0.5]} />
           </mesh>
         ))}
       </group>
 
       {/* Rear Wing Assembly (Twin-plane + center pylon + endplates) */}
-      <group position={[0, 0.84, 1.96]}>
+      <group position={[0, 0.84, 1.98]}>
         <mesh position={[0, -0.34, -0.05]} castShadow material={carbonMat}>
-          <boxGeometry args={[0.09, 0.56, 0.24]} />
+          <boxGeometry args={[0.085, 0.58, 0.24]} />
         </mesh>
         <mesh position={[0, 0.05, 0.02]} rotation={[0.12, 0, 0]} castShadow>
-          <boxGeometry args={[1.38, 0.04, 0.34]} />
-          <meshToonMaterial color={livery.primary} gradientMap={gradientMap} />
+          <boxGeometry args={[1.4, 0.04, 0.36]} />
+          <meshPhysicalMaterial color={livery.primary} roughness={0.22} clearcoat={1.0} />
         </mesh>
-        <mesh position={[0, 0.15, 0.11]} rotation={[0.24, 0, 0]} castShadow>
-          <boxGeometry args={[1.38, 0.03, 0.21]} />
-          <meshToonMaterial color={livery.secondary} gradientMap={gradientMap} />
+        <mesh position={[0, 0.155, 0.12]} rotation={[0.26, 0, 0]} castShadow>
+          <boxGeometry args={[1.4, 0.03, 0.22]} />
+          <meshPhysicalMaterial color={livery.secondary} roughness={0.22} clearcoat={1.0} />
         </mesh>
         {([-1, 1] as const).map((side) => (
-          <mesh key={side} position={[side * 0.7, -0.06, 0.04]} castShadow>
-            <boxGeometry args={[0.045, 0.5, 0.54]} />
-            <meshToonMaterial color={livery.secondary} gradientMap={gradientMap} />
+          <mesh key={side} position={[side * 0.71, -0.06, 0.04]} castShadow>
+            <boxGeometry args={[0.045, 0.52, 0.56]} />
+            <meshPhysicalMaterial color={livery.secondary} roughness={0.25} clearcoat={0.9} />
           </mesh>
         ))}
       </group>
 
       {/* Rear Rain / Brake Light */}
-      <mesh position={[0, 0.3, 2.12]}>
-        <boxGeometry args={[0.1, 0.075, 0.04]} />
+      <mesh position={[0, 0.3, 2.15]}>
+        <boxGeometry args={[0.11, 0.08, 0.04]} />
         <meshStandardMaterial
           ref={rearLightRef}
           color="#7f1d1d"
           emissive="#ef4444"
-          emissiveIntensity={0.5}
-          roughness={0.2}
+          emissiveIntensity={0.8}
+          roughness={0.18}
+          toneMapped={false}
         />
       </mesh>
 
-      {/* Thin Tubular Suspension Wishbone Arms connecting chassis to all 4 wheels */}
+      {/* Real Double-Wishbone V-Suspension (Two angled legs per wishbone) */}
       {([-1, 1] as const).map((side) => (
         <group key={`susp-${side}`}>
-          {/* Front upper & lower wishbone rods */}
+          {/* Front upper V-wishbone */}
           <mesh
-            position={[side * 0.54, 0.31, -1.36]}
-            rotation={[0, side * 0.18, Math.PI / 2]}
+            position={[side * 0.55, 0.31, -1.46]}
+            rotation={[0, side * 0.26, Math.PI / 2]}
             material={carbonMat}
           >
-            <cylinderGeometry args={[0.018, 0.018, 0.76, 8]} />
+            <cylinderGeometry args={[0.015, 0.015, 0.78, 8]} />
           </mesh>
           <mesh
-            position={[side * 0.54, 0.22, -1.3]}
-            rotation={[0, side * -0.18, Math.PI / 2]}
+            position={[side * 0.55, 0.31, -1.24]}
+            rotation={[0, side * -0.26, Math.PI / 2]}
             material={carbonMat}
           >
-            <cylinderGeometry args={[0.02, 0.02, 0.78, 8]} />
+            <cylinderGeometry args={[0.015, 0.015, 0.78, 8]} />
           </mesh>
-          {/* Rear upper & lower wishbone rods */}
+          {/* Front lower V-wishbone */}
           <mesh
-            position={[side * 0.56, 0.34, 1.44]}
-            rotation={[0, side * -0.15, Math.PI / 2]}
+            position={[side * 0.55, 0.21, -1.44]}
+            rotation={[0, side * 0.22, Math.PI / 2]}
             material={carbonMat}
           >
-            <cylinderGeometry args={[0.02, 0.02, 0.78, 8]} />
+            <cylinderGeometry args={[0.017, 0.017, 0.8, 8]} />
           </mesh>
           <mesh
-            position={[side * 0.56, 0.23, 1.52]}
-            rotation={[0, side * 0.16, Math.PI / 2]}
+            position={[side * 0.55, 0.21, -1.26]}
+            rotation={[0, side * -0.22, Math.PI / 2]}
             material={carbonMat}
           >
-            <cylinderGeometry args={[0.022, 0.022, 0.8, 8]} />
+            <cylinderGeometry args={[0.017, 0.017, 0.8, 8]} />
+          </mesh>
+
+          {/* Rear upper V-wishbone */}
+          <mesh
+            position={[side * 0.58, 0.34, 1.38]}
+            rotation={[0, side * -0.24, Math.PI / 2]}
+            material={carbonMat}
+          >
+            <cylinderGeometry args={[0.017, 0.017, 0.78, 8]} />
+          </mesh>
+          <mesh
+            position={[side * 0.58, 0.34, 1.56]}
+            rotation={[0, side * 0.24, Math.PI / 2]}
+            material={carbonMat}
+          >
+            <cylinderGeometry args={[0.017, 0.017, 0.78, 8]} />
+          </mesh>
+          {/* Rear lower V-wishbone */}
+          <mesh
+            position={[side * 0.58, 0.22, 1.4]}
+            rotation={[0, side * -0.2, Math.PI / 2]}
+            material={carbonMat}
+          >
+            <cylinderGeometry args={[0.019, 0.019, 0.8, 8]} />
+          </mesh>
+          <mesh
+            position={[side * 0.58, 0.22, 1.58]}
+            rotation={[0, side * 0.2, Math.PI / 2]}
+            material={carbonMat}
+          >
+            <cylinderGeometry args={[0.019, 0.019, 0.8, 8]} />
           </mesh>
         </group>
       ))}
 
-      {/* Front Wheels (steerable) */}
-      <group ref={frontLeftSteerRef} position={[-0.94, 0.31, -1.36]}>
-        <group ref={setWheelRef(0)}>
-          <mesh rotation={[0, 0, Math.PI / 2]} castShadow material={tireMat}>
-            <cylinderGeometry args={[0.31, 0.31, 0.34, 24]} />
-          </mesh>
-          <mesh rotation={[0, 0, Math.PI / 2]} material={rimMat}>
-            <cylinderGeometry args={[0.16, 0.16, 0.35, 16]} />
-          </mesh>
-        </group>
+      {/* Front Wheels (Steerable + Detailed Rims & Brakes) */}
+      <group ref={frontLeftSteerRef} position={[-0.95, 0.31, -1.36]}>
+        <DetailedWheel
+          radius={0.31}
+          width={0.34}
+          sideSign={-1}
+          tireTreadMat={tireTreadMat}
+          tireSidewallMat={tireSidewallMat}
+          rimMat={rimMat}
+          brakeRotorMat={brakeRotorMat}
+          caliperMat={caliperMat}
+          spinRef={setWheelRef(0)}
+        />
       </group>
 
-      <group ref={frontRightSteerRef} position={[0.94, 0.31, -1.36]}>
-        <group ref={setWheelRef(1)}>
-          <mesh rotation={[0, 0, Math.PI / 2]} castShadow material={tireMat}>
-            <cylinderGeometry args={[0.31, 0.31, 0.34, 24]} />
-          </mesh>
-          <mesh rotation={[0, 0, Math.PI / 2]} material={rimMat}>
-            <cylinderGeometry args={[0.16, 0.16, 0.35, 16]} />
-          </mesh>
-        </group>
+      <group ref={frontRightSteerRef} position={[0.95, 0.31, -1.36]}>
+        <DetailedWheel
+          radius={0.31}
+          width={0.34}
+          sideSign={1}
+          tireTreadMat={tireTreadMat}
+          tireSidewallMat={tireSidewallMat}
+          rimMat={rimMat}
+          brakeRotorMat={brakeRotorMat}
+          caliperMat={caliperMat}
+          spinRef={setWheelRef(1)}
+        />
       </group>
 
-      {/* Rear Wheels (wider slicks) */}
-      <group position={[-0.98, 0.35, 1.48]}>
-        <group ref={setWheelRef(2)}>
-          <mesh rotation={[0, 0, Math.PI / 2]} castShadow material={tireMat}>
-            <cylinderGeometry args={[0.35, 0.35, 0.46, 24]} />
-          </mesh>
-          <mesh rotation={[0, 0, Math.PI / 2]} material={rimMat}>
-            <cylinderGeometry args={[0.19, 0.19, 0.47, 16]} />
-          </mesh>
-        </group>
+      {/* Rear Wheels (Wider Slicks + Detailed Rims & Brakes) */}
+      <group position={[-0.99, 0.35, 1.48]}>
+        <DetailedWheel
+          radius={0.35}
+          width={0.46}
+          sideSign={-1}
+          tireTreadMat={tireTreadMat}
+          tireSidewallMat={tireSidewallMat}
+          rimMat={rimMat}
+          brakeRotorMat={brakeRotorMat}
+          caliperMat={caliperMat}
+          spinRef={setWheelRef(2)}
+        />
       </group>
 
-      <group position={[0.98, 0.35, 1.48]}>
-        <group ref={setWheelRef(3)}>
-          <mesh rotation={[0, 0, Math.PI / 2]} castShadow material={tireMat}>
-            <cylinderGeometry args={[0.35, 0.35, 0.46, 24]} />
-          </mesh>
-          <mesh rotation={[0, 0, Math.PI / 2]} material={rimMat}>
-            <cylinderGeometry args={[0.19, 0.19, 0.47, 16]} />
-          </mesh>
-        </group>
+      <group position={[0.99, 0.35, 1.48]}>
+        <DetailedWheel
+          radius={0.35}
+          width={0.46}
+          sideSign={1}
+          tireTreadMat={tireTreadMat}
+          tireSidewallMat={tireSidewallMat}
+          rimMat={rimMat}
+          brakeRotorMat={brakeRotorMat}
+          caliperMat={caliperMat}
+          spinRef={setWheelRef(3)}
+        />
       </group>
     </group>
   );
 }
 
 export function FormulaCar() {
+  const activeStageId = useGameStore((state) => state.activeStageId);
+
   const carGroupRef = useRef<THREE.Group>(null);
   const chassisTiltRef = useRef<THREE.Group>(null);
   const frontLeftSteerRef = useRef<THREE.Group>(null);
   const frontRightSteerRef = useRef<THREE.Group>(null);
   const wheelSpinRefs = useRef<(THREE.Group | null)[]>([]);
   const rearLightRef = useRef<THREE.MeshStandardMaterial>(null);
-  const primaryMatRef = useRef<THREE.MeshToonMaterial>(null);
-  const secondaryMatRef = useRef<THREE.MeshToonMaterial>(null);
-  const accentMatRef = useRef<THREE.MeshToonMaterial>(null);
+  const primaryMatRef = useRef<THREE.MeshPhysicalMaterial>(null);
+  const secondaryMatRef = useRef<THREE.MeshPhysicalMaterial>(null);
+  const accentMatRef = useRef<THREE.MeshPhysicalMaterial>(null);
+
+  const activeLivery = useMemo(() => {
+    if (activeStageId === null) {
+      return DEFAULT_MCLAREN_LIVERY;
+    }
+    return STAGES.find((stage) => stage.id === activeStageId)?.car ?? DEFAULT_MCLAREN_LIVERY;
+  }, [activeStageId]);
 
   const targetPrimary = useMemo(() => new THREE.Color(DEFAULT_MCLAREN_LIVERY.primary), []);
   const targetSecondary = useMemo(() => new THREE.Color(DEFAULT_MCLAREN_LIVERY.secondary), []);
@@ -422,12 +701,26 @@ export function FormulaCar() {
     targetSecondary.set(desiredLivery.secondary);
     targetAccent.set(desiredLivery.accent);
 
+    const wetClearcoat = gameRuntime.rainIntensity > 0.2 ? 1.0 : 0.92;
+    const wetRoughness = gameRuntime.rainIntensity > 0.2 ? 0.12 : 0.22;
+
     if (primaryMatRef.current) {
       primaryMatRef.current.color.lerp(targetPrimary, dt * 4);
+      primaryMatRef.current.roughness = THREE.MathUtils.lerp(
+        primaryMatRef.current.roughness,
+        wetRoughness,
+        dt * 4
+      );
+      primaryMatRef.current.clearcoat = wetClearcoat;
     }
 
     if (secondaryMatRef.current) {
       secondaryMatRef.current.color.lerp(targetSecondary, dt * 4);
+      secondaryMatRef.current.roughness = THREE.MathUtils.lerp(
+        secondaryMatRef.current.roughness,
+        wetRoughness,
+        dt * 4
+      );
     }
 
     if (accentMatRef.current) {
@@ -436,8 +729,8 @@ export function FormulaCar() {
 
     if (rearLightRef.current) {
       const isRain = gameRuntime.rainIntensity > 0.25;
-      const blink = isRain ? (Math.sin(state.clock.elapsedTime * 14) > 0 ? 3.2 : 0.3) : 0.4;
-      const brakeBoost = gameRuntime.brake > 0.1 ? 3.8 : blink;
+      const blink = isRain ? (Math.sin(state.clock.elapsedTime * 14) > 0 ? 4.2 : 0.35) : 0.55;
+      const brakeBoost = gameRuntime.brake > 0.1 ? 4.8 : blink;
       rearLightRef.current.emissiveIntensity = brakeBoost;
     }
   });
@@ -446,7 +739,7 @@ export function FormulaCar() {
     <group ref={carGroupRef}>
       <group ref={chassisTiltRef}>
         <FormulaChassis
-          livery={DEFAULT_MCLAREN_LIVERY}
+          livery={activeLivery}
           isSennaHelmet
           rearLightRef={rearLightRef}
           primaryMatRef={primaryMatRef}
