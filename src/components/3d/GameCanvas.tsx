@@ -8,6 +8,7 @@ import { updateCarPhysics } from '../../utils/physics';
 import { gameRuntime } from '../../utils/runtime';
 import { CameraController } from './CameraController';
 import { CorridorTrack } from './CorridorTrack';
+import { Effects } from './Effects';
 import { Environment } from './Environment';
 import { FormulaCar } from './FormulaCar';
 import { RaceTrack } from './RaceTrack';
@@ -95,6 +96,7 @@ function SceneCore() {
       <FormulaCar />
       <CorridorTrack />
       <RaceTrack />
+      <Effects />
     </>
   );
 }
