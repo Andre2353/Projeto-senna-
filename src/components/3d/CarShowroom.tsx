@@ -86,6 +86,24 @@ function configureModelMaterial(mat: THREE.Material): THREE.Material {
   return clonedMat;
 }
 
+function computeExactVertexBox3(root: THREE.Object3D): THREE.Box3 {
+  const box = new THREE.Box3();
+  const vertex = new THREE.Vector3();
+
+  root.updateMatrixWorld(true);
+  root.traverse((obj) => {
+    if (!(obj instanceof THREE.Mesh)) return;
+    const pos = obj.geometry?.attributes?.position;
+    if (!pos) return;
+    for (let i = 0; i < pos.count; i++) {
+      vertex.fromBufferAttribute(pos, i).applyMatrix4(obj.matrixWorld);
+      box.expandByPoint(vertex);
+    }
+  });
+
+  return box;
+}
+
 function GlbShowroomModel({ url }: { url: string }) {
   const { scene } = useGLTF(url);
 
@@ -93,21 +111,24 @@ function GlbShowroomModel({ url }: { url: string }) {
     const cloned = scene.clone(true);
     const createdMaterials: THREE.Material[] = [];
 
-    const initialBox = new THREE.Box3().setFromObject(cloned);
-    const size = new THREE.Vector3();
-    initialBox.getSize(size);
+    const rawBox = computeExactVertexBox3(cloned);
+    const rawSize = new THREE.Vector3();
+    rawBox.getSize(rawSize);
 
-    const maxHoriz = Math.max(size.x, size.z, 0.001);
+    const maxHoriz = Math.max(rawSize.x, rawSize.z, 0.001);
     const scale = 4.6 / maxHoriz;
     cloned.scale.setScalar(scale);
     cloned.updateMatrixWorld(true);
 
-    const scaledBox = new THREE.Box3().setFromObject(cloned);
+    // Recalculate exact Box3 AFTER scaling so all 4 tires rest flush on y = 0
+    const scaledBox = computeExactVertexBox3(cloned);
     const scaledCenter = new THREE.Vector3();
     scaledBox.getCenter(scaledCenter);
 
-    // Center horizontally at origin and seat tire bottoms exactly at y = 0
-    cloned.position.set(-scaledCenter.x, -scaledBox.min.y, -scaledCenter.z);
+    cloned.position.x -= scaledCenter.x;
+    cloned.position.z -= scaledCenter.z;
+    cloned.position.y -= scaledBox.min.y;
+    cloned.updateMatrixWorld(true);
 
     cloned.traverse((obj) => {
       if (!(obj instanceof THREE.Mesh)) return;
@@ -305,7 +326,7 @@ export function CarShowroom() {
       </mesh>
 
       {/* Satin Dark Concrete Floor with Subtle Soft Reflection */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.002, 0]} receiveShadow>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.001, 0]} receiveShadow>
         <circleGeometry args={[34, 64]} />
         <MeshReflectorMaterial
           map={concreteTex.map}
@@ -324,13 +345,13 @@ export function CarShowroom() {
         />
       </mesh>
 
-      {/* Strong Grounding Contact Shadows Under Tires */}
+      {/* Strong Grounding Contact Shadows Directly Beneath Tires at y = 0 */}
       <ContactShadows
-        position={[0, 0.003, 0]}
-        opacity={0.92}
-        scale={10}
-        blur={1.7}
-        far={2.4}
+        position={[0, 0.001, 0]}
+        opacity={0.95}
+        scale={9.5}
+        blur={1.5}
+        far={1.8}
         resolution={512}
         color="#000000"
       />
