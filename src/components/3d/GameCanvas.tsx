@@ -3,6 +3,10 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useGameStore } from '../../store/useGameStore';
 import { gameRuntime } from '../../utils/runtime';
+import { CameraController } from './CameraController';
+import { Environment } from './Environment';
+import { FormulaCar } from './FormulaCar';
+import { SceneLighting } from './SceneLighting';
 
 interface CanvasErrorBoundaryProps {
   children: ReactNode;
@@ -45,7 +49,7 @@ function isWebGLAvailable(): boolean {
   }
 }
 
-function FoundationSceneContent() {
+function SceneCore() {
   const mode = useGameStore((state) => state.mode);
   const markLoaded = useGameStore((state) => state.markLoaded);
 
@@ -56,7 +60,8 @@ function FoundationSceneContent() {
   useFrame((_, delta) => {
     if (mode === 'landing') {
       const clampedDelta = Math.min(delta, 0.05);
-      gameRuntime.position.z -= clampedDelta * 14;
+      gameRuntime.speed = 65;
+      gameRuntime.position.z -= clampedDelta * 18;
       if (gameRuntime.position.z < -260) {
         gameRuntime.position.z = 0;
       }
@@ -65,15 +70,24 @@ function FoundationSceneContent() {
 
   return (
     <>
-      <color attach="background" args={['#09090b']} />
-      <fog attach="fog" args={['#09090b', 35, 260]} />
-      <ambientLight intensity={0.45} />
-      <directionalLight position={[18, 28, 12]} intensity={1.8} color="#fde68a" castShadow />
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, -400]} receiveShadow>
-        <planeGeometry args={[80, 1200]} />
-        <meshStandardMaterial color="#18181b" roughness={0.85} metalness={0.15} />
+      <Environment />
+      <SceneLighting />
+      <CameraController />
+      <FormulaCar />
+
+      {/* Preview track surface until CorridorTrack and RaceTrack replace it in Phase D */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, -1625]} receiveShadow>
+        <planeGeometry args={[28, 3400]} />
+        <meshStandardMaterial color="#18181b" roughness={0.78} metalness={0.18} />
       </mesh>
-      <gridHelper args={[160, 80, '#facc15', '#27272a']} position={[0, 0.01, -40]} />
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[-14.2, 0.01, -1625]}>
+        <planeGeometry args={[0.45, 3400]} />
+        <meshStandardMaterial color="#f8fafc" roughness={0.5} />
+      </mesh>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[14.2, 0.01, -1625]}>
+        <planeGeometry args={[0.45, 3400]} />
+        <meshStandardMaterial color="#f8fafc" roughness={0.5} />
+      </mesh>
     </>
   );
 }
@@ -86,13 +100,13 @@ export function GameCanvas() {
   const markLoaded = useGameStore((state) => state.markLoaded);
 
   useEffect(() => {
-    setLoadProgress(45);
+    setLoadProgress(50);
     const supported = isWebGLAvailable();
     setWebglSupported(supported);
     if (!supported) {
       markLoaded();
     } else {
-      setLoadProgress(80);
+      setLoadProgress(90);
     }
   }, [markLoaded, setLoadProgress, setWebglSupported]);
 
@@ -124,7 +138,7 @@ export function GameCanvas() {
         <Canvas
           shadows={quality !== 'low'}
           dpr={dpr}
-          camera={{ fov: 55, near: 0.2, far: 1400, position: [6, 3.2, 10] }}
+          camera={{ fov: 55, near: 0.2, far: 1400, position: [5.2, 2.35, 7.4] }}
           gl={{
             antialias: quality !== 'low',
             powerPreference: 'high-performance',
@@ -132,7 +146,7 @@ export function GameCanvas() {
             toneMappingExposure: 1.05,
           }}
         >
-          <FoundationSceneContent />
+          <SceneCore />
         </Canvas>
       </div>
     </CanvasErrorBoundary>
