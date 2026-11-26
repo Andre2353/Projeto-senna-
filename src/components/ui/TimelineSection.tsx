@@ -1,5 +1,15 @@
-import { useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Crosshair, Flag, Minimize2, RotateCw } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import {
+  ChevronLeft,
+  ChevronRight,
+  Crosshair,
+  Film,
+  Flag,
+  Maximize2,
+  Minimize2,
+  RotateCw,
+  X,
+} from 'lucide-react';
 import { TIMELINE_CARS } from '../../data/sennaData';
 import { useGameStore } from '../../store/useGameStore';
 import type { ExplodedPart, ShowroomAngleZone } from '../../types/game';
@@ -38,6 +48,23 @@ const PART_BUTTONS: Array<{ id: ExplodedPart; label: string }> = [
   { id: 'engine', label: 'MOTOR & CÂMBIO' },
 ];
 
+const PART_TELEMETRY_VIDEOS: Partial<
+  Record<ExplodedPart, { src: string; caption: string }>
+> = {
+  aero: {
+    src: '/videos/f1-aero-test.mp4',
+    caption: 'TÚNEL DE VENTO // FLUXO AERODINÂMICO',
+  },
+  wheels: {
+    src: '/videos/f1-wheel-exploded.mp4',
+    caption: 'CONJUNTO EXPANDIDO // RODA, DISCO & PINÇA',
+  },
+  engine: {
+    src: '/videos/f1-engine-cover.mp4',
+    caption: 'COFRE DO MOTOR // ABERTURA DA CARENAGEM',
+  },
+};
+
 function unlockAudioContext(): void {
   if (typeof window === 'undefined') {
     return;
@@ -65,8 +92,16 @@ export function TimelineSection() {
   const clearInspection = useGameStore((state) => state.clearInspection);
   const enterStage = useGameStore((state) => state.enterStage);
 
+  const [expandedVideo, setExpandedVideo] = useState(false);
+
   const selectedCar = TIMELINE_CARS[selectedIndex] ?? TIMELINE_CARS[0]!;
   const zoneInfo = ZONE_META[showroomZone];
+  const activeVideo =
+    activeInspectedPart !== null ? PART_TELEMETRY_VIDEOS[activeInspectedPart] ?? null : null;
+
+  useEffect(() => {
+    setExpandedVideo(false);
+  }, [activeInspectedPart]);
 
   useEffect(() => {
     if (mode !== 'landing') {
@@ -128,8 +163,12 @@ export function TimelineSection() {
         </div>
       </aside>
 
-      {/* RIGHT TECHNICAL PANEL: Full Engineering Sheet on Dot Click OR Dynamic 360° Angle Card */}
-      <aside className="pointer-events-auto fixed top-28 right-6 z-20 w-full max-w-xs border border-white/15 bg-zinc-950/82 p-5 backdrop-blur-md">
+      {/* RIGHT TECHNICAL PANEL: Full Engineering Sheet + Telemetry Video OR Dynamic 360° Angle Card */}
+      <aside
+        className={`pointer-events-auto fixed top-28 right-6 z-20 max-h-[calc(100dvh-16rem)] w-full overflow-y-auto border border-white/15 bg-zinc-950/85 p-5 backdrop-blur-md transition-[max-width] duration-200 ${
+          activeVideo ? 'max-w-sm' : 'max-w-xs'
+        }`}
+      >
         {activeInspectedPart !== null ? (
           <>
             <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
@@ -141,7 +180,36 @@ export function TimelineSection() {
               </span>
             </div>
 
-            <div className="mt-3 flex flex-col gap-2.5 font-telemetry text-[11px]">
+            {activeVideo && (
+              <div className="mt-3 overflow-hidden border border-white/15 bg-zinc-900">
+                <div className="flex items-center justify-between border-b border-white/10 px-2.5 py-1.5">
+                  <span className="inline-flex items-center gap-1.5 font-telemetry text-[9px] tracking-[0.16em] text-yellow-400">
+                    <Film className="h-3 w-3" />
+                    <span>{activeVideo.caption}</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setExpandedVideo(true)}
+                    title="Ampliar vídeo técnico"
+                    className="cursor-pointer p-0.5 text-zinc-400 transition hover:text-yellow-400"
+                  >
+                    <Maximize2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+                <video
+                  key={activeVideo.src}
+                  src={activeVideo.src}
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  preload="metadata"
+                  className="aspect-video w-full bg-black object-cover"
+                />
+              </div>
+            )}
+
+            <div className="mt-3 flex flex-col gap-2 font-telemetry text-[11px]">
               <div
                 className={`border p-2 ${
                   activeInspectedPart === 'engine'
@@ -304,6 +372,43 @@ export function TimelineSection() {
           <ChevronRight className="h-4 w-4" />
         </button>
       </nav>
+
+      {/* EXPANDED TELEMETRY VIDEO MODAL */}
+      {expandedVideo && activeVideo && (
+        <div
+          className="pointer-events-auto fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/85 p-6 backdrop-blur-md"
+          onClick={() => setExpandedVideo(false)}
+        >
+          <div
+            className="w-full max-w-3xl border border-white/20 bg-zinc-950 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-white/10 px-4 py-2.5">
+              <span className="font-telemetry text-xs font-semibold tracking-[0.2em] text-yellow-400">
+                {selectedCar.chassis.toUpperCase()} // {activeVideo.caption}
+              </span>
+              <button
+                type="button"
+                onClick={() => setExpandedVideo(false)}
+                aria-label="Fechar vídeo ampliado"
+                className="cursor-pointer border border-white/15 p-1 text-zinc-300 transition hover:border-yellow-400 hover:text-yellow-400"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <video
+              key={`modal-${activeVideo.src}`}
+              src={activeVideo.src}
+              autoPlay
+              loop
+              muted
+              playsInline
+              controls
+              className="aspect-video w-full bg-black object-contain"
+            />
+          </div>
+        </div>
+      )}
     </>
   );
 }
