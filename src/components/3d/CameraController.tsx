@@ -42,7 +42,13 @@ export function CameraController() {
       return;
     }
 
-    // Smooth camera transition after clicking "LIGAR MOTOR / INICIAR"
+    // Handle seamless lap teleport jump cleanly without jarring camera snap
+    const jumpedZ = gameRuntime.position.z - gameRuntime.previousPosition.z;
+    if (Math.abs(jumpedZ) > 250) {
+      camera.position.z += jumpedZ;
+      currentLookAt.z += jumpedZ;
+    }
+
     gameRuntime.cameraIntroProgress = Math.min(1, gameRuntime.cameraIntroProgress + dt * 1.35);
 
     const speedRatio = clamp(Math.abs(gameRuntime.speed) / 330, 0, 1);
@@ -52,9 +58,9 @@ export function CameraController() {
     const baseBack = (isOpenWorld ? 9.2 : 7.4) * distScale + speedRatio * 1.2;
     const baseHeight = (isOpenWorld ? 3.4 : 2.55) * distScale - speedRatio * 0.25;
 
-    // Suzuka 1988 start stumble brief zoom-in
     const stumbleZoom =
       gameRuntime.activeStageId === 3 &&
+      gameRuntime.playerLap === 1 &&
       gameRuntime.stumbleElapsed > 0 &&
       gameRuntime.stumbleElapsed < 2.2
         ? 1.5
@@ -62,7 +68,6 @@ export function CameraController() {
 
     const backDistance = Math.max(4.4, baseBack - stumbleZoom);
 
-    // Subtle cinematic lateral lag scaled by speed so slow driving stays centered
     lateralLagRef.current = THREE.MathUtils.lerp(
       lateralLagRef.current,
       gameRuntime.steering * 0.55 * speedRatio,
@@ -83,22 +88,20 @@ export function CameraController() {
     );
 
     desiredLookAt.set(
-      carX - sinH * 11,
+      carX - sinH * 12,
       carY + 0.85,
-      carZ - cosH * 11
+      carZ - cosH * 12
     );
 
-    const followRate = 4 + gameRuntime.cameraIntroProgress * 8;
-    camera.position.lerp(desiredCameraPos, dt * followRate);
-    currentLookAt.lerp(desiredLookAt, dt * (followRate + 2));
+    const followRate = Math.abs(jumpedZ) > 250 ? 60 : 4 + gameRuntime.cameraIntroProgress * 8;
+    camera.position.lerp(desiredCameraPos, Math.min(1, dt * followRate));
+    currentLookAt.lerp(desiredLookAt, Math.min(1, dt * (followRate + 2)));
     camera.lookAt(currentLookAt);
 
-    // Dynamic speed FOV (55° -> 78°)
     const targetFov = 55 + speedRatio * 23;
     persp.fov = THREE.MathUtils.lerp(persp.fov, targetFov, dt * 5);
     persp.updateProjectionMatrix();
 
-    // Camera roll strictly capped at 0.04 rad, proportional to speed, always lerping back to 0
     const rawTargetRoll = reducedMotion
       ? 0
       : clamp(-gameRuntime.steering * 0.04 * speedRatio, -0.04, 0.04);

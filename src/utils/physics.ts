@@ -3,6 +3,7 @@ import { controlInput } from '../hooks/useGameControls';
 import type { GameMode, StageConfig } from '../types/game';
 import { clamp, damp, normalizeAngle } from './gameMath';
 import { gameRuntime } from './runtime';
+import { getTrackHeading, getTrackOffsetX } from './trackLayout';
 
 const MAX_SPEED_KMH = 330;
 const GEAR_THRESHOLDS_KMH = [0, 72, 128, 178, 228, 276, 335];
@@ -76,25 +77,46 @@ export function updateCarPhysics(
   const brakeTarget = controlInput.backward ? 1 : 0;
   const steerDir = (controlInput.left ? 1 : 0) - (controlInput.right ? 1 : 0);
 
-  // Instant throttle response for crisp F1 launch feel
   gameRuntime.throttle = damp(gameRuntime.throttle, throttleTarget, 16, dt);
   gameRuntime.brake = damp(gameRuntime.brake, brakeTarget, 14, dt);
   gameRuntime.steering = damp(gameRuntime.steering, steerDir, 13, dt);
   gameRuntime.handbrake = mode === 'open_world' && controlInput.handbrake;
+
+  // F1 Starting Grid Countdown: car held on brakes, throttle revs engine smoothly
+  if (mode === 'race' && gameRuntime.racePhase === 'countdown') {
+    gameRuntime.speed = 0;
+    gameRuntime.gear = 1;
+    const revTarget = 3800 + gameRuntime.throttle * 9200;
+    gameRuntime.rpm = damp(gameRuntime.rpm, revTarget, 12, dt);
+    gameRuntime.rotation.x = damp(gameRuntime.rotation.x, -gameRuntime.throttle * 0.014, 10, dt);
+    gameRuntime.rotation.z = 0;
+    return;
+  }
 
   gameRuntime.previousPosition.x = gameRuntime.position.x;
   gameRuntime.previousPosition.y = gameRuntime.position.y;
   gameRuntime.previousPosition.z = gameRuntime.position.z;
 
   const rainFactor = gameRuntime.rainIntensity;
-  const grip = clamp(1 - rainFactor * 0.3, 0.66, 1);
+  const baseGrip = clamp(1 - rainFactor * 0.28, 0.68, 1);
+
+  // Check off-track surface traction on curved race tracks
+  let offTrackFactor = 1;
+  if (mode === 'race' && stage) {
+    const centerX = getTrackOffsetX(stage.id, gameRuntime.position.z, stage.lapLength);
+    const absLocalX = Math.abs(gameRuntime.position.x - centerX);
+    if (absLocalX > 11.6) {
+      offTrackFactor = 0.84;
+    }
+  }
+  const grip = baseGrip * offTrackFactor;
 
   // Stage 3 (Suzuka 1988) brief start stumble
   let stumbleMultiplier = 1;
-  if (stage?.mechanic === 'stumble_recovery') {
+  if (stage?.mechanic === 'stumble_recovery' && gameRuntime.playerLap === 1) {
     gameRuntime.stumbleElapsed += dt;
-    if (gameRuntime.stumbleElapsed > 0.45 && gameRuntime.stumbleElapsed < 2.05) {
-      stumbleMultiplier = 0.28;
+    if (gameRuntime.stumbleElapsed > 0.35 && gameRuntime.stumbleElapsed < 1.85) {
+      stumbleMultiplier = 0.32;
       gameRuntime.stumbleTriggered = true;
     }
   }
@@ -108,10 +130,11 @@ export function updateCarPhysics(
         : 0.92
     : 1;
 
-  // F1 low-speed launch punch below 125 km/h
   const launchPunch = gameRuntime.speed < 125 ? 1.32 : 1.0;
   const baseAccel = 118 * launchPunch * grip * stumbleMultiplier * sixthGearFactor;
-  const drag = 0.0007 * gameRuntime.speed * Math.abs(gameRuntime.speed) + 0.09 * gameRuntime.speed;
+  const drag =
+    0.0007 * gameRuntime.speed * Math.abs(gameRuntime.speed) +
+    (offTrackFactor < 1 ? 0.22 : 0.09) * gameRuntime.speed;
 
   if (mode === 'open_world') {
     if (gameRuntime.throttle > 0.05) {
@@ -144,7 +167,6 @@ export function updateCarPhysics(
   const speedRatio = clamp(Math.abs(gameRuntime.speed) / MAX_SPEED_KMH, 0, 1);
 
   if (mode === 'open_world') {
-    // Assisted 360° steering: stable at high speed, agile at medium speed
     const steerAuthority =
       clamp(Math.abs(gameRuntime.speed) / 40, 0.26, 1) *
       (1 - speedRatio * 0.36) *
@@ -169,7 +191,6 @@ export function updateCarPhysics(
     gameRuntime.position.x += forwardX * speedMetersPerSec * dt;
     gameRuntime.position.z += forwardZ * speedMetersPerSec * dt;
 
-    // Smooth wall-slide boundary clamping in Open World (never dead-stops)
     if (gameRuntime.position.x < -420) {
       gameRuntime.position.x = -420;
       gameRuntime.speed *= 0.996;
@@ -185,8 +206,72 @@ export function updateCarPhysics(
       gameRuntime.speed *= 0.996;
     }
     gameRuntime.distance += Math.abs(speedMetersPerSec) * dt;
+    gameRuntime.surfaceKerb = false;
+  } else if (mode === 'race' && stage) {
+    // Continuous curved track driving synchronized with getTrackOffsetX
+    const trackHeading = getTrackHeading(stage.id, gameRuntime.position.z, stage.lapLength);
+    const speedAuthority = clamp(gameRuntime.speed / 30, 0.28, 1) * (1 - speedRatio * 0.24);
+    const steerDelta = gameRuntime.steering * 1.55 * steeringSensitivity * grip * speedAuthority * dt;
+
+    let nextHeading = gameRuntime.heading + steerDelta;
+    if (Math.abs(gameRuntime.steering) < 0.08) {
+      // Natural self-aligning front caster subtly blends toward corner exit without removing cornering feel
+      nextHeading = damp(nextHeading, trackHeading, 2.2, dt);
+    }
+
+    const relativeDeviation = clamp(normalizeAngle(nextHeading - trackHeading), -0.44, 0.44);
+    gameRuntime.heading = normalizeAngle(trackHeading + relativeDeviation);
+
+    const forwardX = -Math.sin(gameRuntime.heading);
+    const forwardZ = -Math.cos(gameRuntime.heading);
+    gameRuntime.position.x += forwardX * speedMetersPerSec * dt;
+    gameRuntime.position.z += forwardZ * speedMetersPerSec * dt;
+
+    const newCenterX = getTrackOffsetX(stage.id, gameRuntime.position.z, stage.lapLength);
+    const newTrackHeading = getTrackHeading(stage.id, gameRuntime.position.z, stage.lapLength);
+    const raceLimit = 12.8;
+    const localX = gameRuntime.position.x - newCenterX;
+
+    // Smooth wall-slide deflection along curved barriers (never sticks or zeroes speed)
+    if (localX < -raceLimit) {
+      gameRuntime.position.x = newCenterX - raceLimit;
+      gameRuntime.heading = damp(gameRuntime.heading, newTrackHeading, 16, dt);
+      gameRuntime.speed = Math.max(70, gameRuntime.speed * (1 - 0.14 * dt));
+    } else if (localX > raceLimit) {
+      gameRuntime.position.x = newCenterX + raceLimit;
+      gameRuntime.heading = damp(gameRuntime.heading, newTrackHeading, 16, dt);
+      gameRuntime.speed = Math.max(70, gameRuntime.speed * (1 - 0.14 * dt));
+    }
+
+    // Side-by-side wheel deflection against all visible rivals
+    for (let i = 0; i < gameRuntime.opponents.length; i++) {
+      const opp = gameRuntime.opponents[i];
+      if (!opp || !opp.visualVisible) continue;
+      const dz = Math.abs(gameRuntime.position.z - opp.visualZ);
+      const dx = gameRuntime.position.x - opp.visualX;
+      if (dz < 3.6 && Math.abs(dx) < 1.9) {
+        const pushDir = dx >= 0 ? 1 : -1;
+        gameRuntime.position.x = clamp(
+          opp.visualX + pushDir * 2.02,
+          newCenterX - raceLimit,
+          newCenterX + raceLimit
+        );
+        gameRuntime.speed = Math.max(85, gameRuntime.speed * 0.985);
+      }
+    }
+
+    const absLocal = Math.abs(gameRuntime.position.x - newCenterX);
+    gameRuntime.surfaceKerb = absLocal > 10.6 && absLocal < 13.0;
+    gameRuntime.playerTotalDistance = (gameRuntime.playerLap - 1) * stage.lapLength - gameRuntime.position.z;
+    gameRuntime.distance = Math.max(0, gameRuntime.playerTotalDistance);
+    gameRuntime.drift = damp(
+      gameRuntime.drift,
+      Math.abs(gameRuntime.steering) * speedRatio * (0.18 + rainFactor * 0.55),
+      8,
+      dt
+    );
   } else {
-    // High-speed assisted steering curve (precise without spinout)
+    // Choice Autodrome straight corridor physics
     const highSpeedDamping = 1 - speedRatio * 0.28;
     const lateralSpeed =
       gameRuntime.steering *
@@ -202,47 +287,19 @@ export function updateCarPhysics(
     gameRuntime.position.x -= lateralSpeed * dt;
     gameRuntime.position.z -= speedMetersPerSec * dt;
 
-    // Smooth Wall Slide along barriers (never sticks or stops at 0 km/h)
-    if (mode === 'corridor') {
-      const limits = getCorridorLateralLimit(gameRuntime.position.z);
-      if (gameRuntime.position.x < limits.minX) {
-        gameRuntime.position.x = limits.minX;
-        gameRuntime.heading = damp(gameRuntime.heading, 0, 16, dt);
-        gameRuntime.speed *= 0.996;
-      } else if (gameRuntime.position.x > limits.maxX) {
-        gameRuntime.position.x = limits.maxX;
-        gameRuntime.heading = damp(gameRuntime.heading, 0, 16, dt);
-        gameRuntime.speed *= 0.996;
-      }
-      gameRuntime.distance = Math.max(0, -gameRuntime.position.z);
-    } else {
-      const raceLimit = 11.8;
-      if (gameRuntime.position.x < -raceLimit) {
-        gameRuntime.position.x = -raceLimit;
-        gameRuntime.heading = damp(gameRuntime.heading, 0, 16, dt);
-        gameRuntime.speed *= 0.996;
-      } else if (gameRuntime.position.x > raceLimit) {
-        gameRuntime.position.x = raceLimit;
-        gameRuntime.heading = damp(gameRuntime.heading, 0, 16, dt);
-        gameRuntime.speed *= 0.996;
-      }
-
-      // Smooth rival side-by-side slide deflection (prevents sticking on wheel-to-wheel contact)
-      for (let i = 0; i < gameRuntime.opponents.length; i++) {
-        const opp = gameRuntime.opponents[i];
-        if (!opp) continue;
-        const dz = Math.abs(gameRuntime.position.z - opp.z);
-        const dx = gameRuntime.position.x - opp.x;
-        if (dz < 3.6 && Math.abs(dx) < 1.95) {
-          const pushDir = dx >= 0 ? 1 : -1;
-          gameRuntime.position.x = clamp(opp.x + pushDir * 2.05, -raceLimit, raceLimit);
-          gameRuntime.speed = Math.max(95, gameRuntime.speed * 0.985);
-        }
-      }
-
-      gameRuntime.distance = Math.max(0, -gameRuntime.position.z);
+    const limits = getCorridorLateralLimit(gameRuntime.position.z);
+    if (gameRuntime.position.x < limits.minX) {
+      gameRuntime.position.x = limits.minX;
+      gameRuntime.heading = damp(gameRuntime.heading, 0, 16, dt);
+      gameRuntime.speed *= 0.996;
+    } else if (gameRuntime.position.x > limits.maxX) {
+      gameRuntime.position.x = limits.maxX;
+      gameRuntime.heading = damp(gameRuntime.heading, 0, 16, dt);
+      gameRuntime.speed *= 0.996;
     }
-
+    gameRuntime.distance = Math.max(0, -gameRuntime.position.z);
+    const absX = Math.abs(gameRuntime.position.x);
+    gameRuntime.surfaceKerb = absX > 10.6 && absX < 13.4;
     gameRuntime.drift = damp(
       gameRuntime.drift,
       Math.abs(gameRuntime.steering) * speedRatio * (0.18 + rainFactor * 0.55),
@@ -250,9 +307,6 @@ export function updateCarPhysics(
       dt
     );
   }
-
-  const absX = Math.abs(gameRuntime.position.x);
-  gameRuntime.surfaceKerb = mode !== 'open_world' && absX > 10.6 && absX < 13.4;
 
   const targetPitch = gameRuntime.brake * 0.042 - gameRuntime.throttle * 0.018;
   const targetRoll = -gameRuntime.steering * 0.055 * speedRatio;

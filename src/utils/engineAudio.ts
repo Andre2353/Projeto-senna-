@@ -170,6 +170,10 @@ export class EngineAudioController {
     this.playChord([440.0, 554.37, 659.25], 0.65, 0.16);
   }
 
+  public playCountdownBeep(freq = 880, duration = 0.12): void {
+    this.playToneSweep(freq, freq, duration, 'sine', 0.14);
+  }
+
   private playToneSweep(
     startFreq: number,
     endFreq: number,

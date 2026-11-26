@@ -2,6 +2,7 @@ import type {
   CarLivery,
   ChapterMonument,
   GameSettings,
+  OpponentSpec,
   StageConfig,
   TimelineCarEntry,
 } from '../types/game';
@@ -36,7 +37,7 @@ export const DEFAULT_MCLAREN_LIVERY: CarLivery = {
 
 const WILLIAMS_LIVERY: CarLivery = {
   id: 'williams-fw14b',
-  teamName: 'Williams Renault',
+  teamName: 'Williams',
   chassisName: 'FW14B',
   primary: '#1D4ED8',
   secondary: '#EAB308',
@@ -47,8 +48,8 @@ const WILLIAMS_LIVERY: CarLivery = {
 
 const FERRARI_LIVERY: CarLivery = {
   id: 'ferrari-156-85',
-  teamName: 'Scuderia Ferrari',
-  chassisName: '156/85',
+  teamName: 'Ferrari',
+  chassisName: 'F1/87',
   primary: '#DC2626',
   secondary: '#09090B',
   accent: '#FACC15',
@@ -58,7 +59,7 @@ const FERRARI_LIVERY: CarLivery = {
 
 const TYRRELL_LIVERY: CarLivery = {
   id: 'tyrrell-019',
-  teamName: 'Tyrrell Racing',
+  teamName: 'Tyrrell',
   chassisName: '019',
   primary: '#1E3A8A',
   secondary: '#F8FAFC',
@@ -69,7 +70,7 @@ const TYRRELL_LIVERY: CarLivery = {
 
 const BENETTON_LIVERY: CarLivery = {
   id: 'benetton-b193',
-  teamName: 'Benetton Ford',
+  teamName: 'Benetton',
   chassisName: 'B193',
   primary: '#16A34A',
   secondary: '#EAB308',
@@ -100,6 +101,100 @@ const PROST_MCLAREN_LIVERY: CarLivery = {
   numberText: '7',
 };
 
+const BRABHAM_LIVERY: CarLivery = {
+  id: 'brabham-bt53',
+  teamName: 'Brabham',
+  chassisName: 'BT53',
+  primary: '#1E293B',
+  secondary: '#F8FAFC',
+  accent: '#38BDF8',
+  stripe: '#EAB308',
+  numberText: '1',
+};
+
+const LOTUS_BLACK_LIVERY: CarLivery = {
+  id: 'lotus-jps',
+  teamName: 'Lotus',
+  chassisName: '97T',
+  primary: '#09090B',
+  secondary: '#EAB308',
+  accent: '#FACC15',
+  stripe: '#CA8A04',
+  numberText: '11',
+};
+
+const LOTUS_CAMEL_LIVERY: CarLivery = {
+  id: 'lotus-camel',
+  teamName: 'Lotus',
+  chassisName: '100T',
+  primary: '#EAB308',
+  secondary: '#1D4ED8',
+  accent: '#F8FAFC',
+  stripe: '#09090B',
+  numberText: '1',
+};
+
+const LIGIER_LIVERY: CarLivery = {
+  id: 'ligier-js',
+  teamName: 'Ligier',
+  chassisName: 'JS33',
+  primary: '#2563EB',
+  secondary: '#F8FAFC',
+  accent: '#DC2626',
+  stripe: '#F8FAFC',
+  numberText: '25',
+};
+
+const MARCH_LIVERY: CarLivery = {
+  id: 'march-leyton',
+  teamName: 'Leyton House',
+  chassisName: 'CG901',
+  primary: '#0EA5E9',
+  secondary: '#0F172A',
+  accent: '#F8FAFC',
+  stripe: '#38BDF8',
+  numberText: '16',
+};
+
+interface RivalTemplate {
+  id: string;
+  name: string;
+  shortName: string;
+  team: string;
+  helmetColor: string;
+  livery: CarLivery;
+  number: string;
+  baseSpeedKmh: number;
+  cornerSkill: number;
+  aggression: number;
+}
+
+function buildGridOpponents(
+  stageSlug: string,
+  playerGridPos: number,
+  templates: readonly RivalTemplate[]
+): OpponentSpec[] {
+  const slots = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].filter((pos) => pos !== playerGridPos);
+  return templates.slice(0, 9).map((tpl, idx) => {
+    const slot = slots[idx] ?? idx + 1;
+    const laneX = slot % 2 === 1 ? -2.6 : 2.6;
+    const initialOffsetZ = 4 + (slot - 1) * 6.5;
+    return {
+      id: `${stageSlug}-${tpl.id}`,
+      name: tpl.name,
+      shortName: tpl.shortName,
+      team: tpl.team,
+      helmetColor: tpl.helmetColor,
+      livery: { ...tpl.livery, numberText: tpl.number },
+      initialOffsetZ,
+      laneX,
+      baseSpeedKmh: tpl.baseSpeedKmh,
+      cornerSkill: tpl.cornerSkill,
+      aggression: tpl.aggression,
+    };
+  });
+}
+
 export const STAGES: readonly StageConfig[] = [
   {
     id: 1,
@@ -108,7 +203,10 @@ export const STAGES: readonly StageConfig[] = [
     portalZ: -90,
     circuit: 'MÔNACO',
     year: 1984,
-    raceDistance: 1250,
+    lapLength: 1440,
+    totalLaps: 3,
+    playerGridPosition: 6,
+    raceDistance: 1440 * 3,
     mechanic: 'overtake_rain',
     car: {
       id: 'toleman-tg184',
@@ -123,27 +221,26 @@ export const STAGES: readonly StageConfig[] = [
     weather: {
       skyColor: '#1e293b',
       fogColor: '#1e293b',
-      fogNear: 25,
-      fogFar: 220,
+      fogNear: 28,
+      fogFar: 250,
       sunColor: '#94a3b8',
-      sunIntensity: 1.1,
-      ambientIntensity: 0.75,
+      sunIntensity: 1.15,
+      ambientIntensity: 0.78,
       rain: 1.0,
       wetAsphalt: true,
     },
-    opponents: [
-      {
-        id: 'prost-84',
-        name: 'ALAIN PROST',
-        team: 'McLaren',
-        livery: PROST_MCLAREN_LIVERY,
-        initialOffsetZ: -55,
-        laneX: 2.2,
-        baseSpeedKmh: 215,
-        aggression: 0.45,
-      },
-    ],
-    targetOvertakes: 1,
+    opponents: buildGridOpponents('monaco84', 6, [
+      { id: 'prost', name: 'ALAIN PROST', shortName: 'PROST', team: 'McLaren', helmetColor: '#F8FAFC', livery: PROST_MCLAREN_LIVERY, number: '7', baseSpeedKmh: 246, cornerSkill: 0.94, aggression: 0.68 },
+      { id: 'mansell', name: 'NIGEL MANSELL', shortName: 'MANSELL', team: 'Lotus', helmetColor: '#1D4ED8', livery: LOTUS_BLACK_LIVERY, number: '12', baseSpeedKmh: 244, cornerSkill: 0.92, aggression: 0.8 },
+      { id: 'lauda', name: 'NIKI LAUDA', shortName: 'LAUDA', team: 'McLaren', helmetColor: '#DC2626', livery: PROST_MCLAREN_LIVERY, number: '8', baseSpeedKmh: 242, cornerSkill: 0.93, aggression: 0.6 },
+      { id: 'piquet', name: 'NELSON PIQUET', shortName: 'PIQUET', team: 'Brabham', helmetColor: '#FACC15', livery: BRABHAM_LIVERY, number: '1', baseSpeedKmh: 240, cornerSkill: 0.9, aggression: 0.65 },
+      { id: 'alboreto', name: 'MICHELE ALBORETO', shortName: 'ALBORETO', team: 'Ferrari', helmetColor: '#FACC15', livery: FERRARI_LIVERY, number: '27', baseSpeedKmh: 238, cornerSkill: 0.89, aggression: 0.62 },
+      { id: 'rosberg', name: 'KEKE ROSBERG', shortName: 'ROSBERG', team: 'Williams', helmetColor: '#F8FAFC', livery: WILLIAMS_LIVERY, number: '6', baseSpeedKmh: 235, cornerSkill: 0.88, aggression: 0.72 },
+      { id: 'angelis', name: 'ELIO DE ANGELIS', shortName: 'DE ANGELIS', team: 'Lotus', helmetColor: '#F8FAFC', livery: LOTUS_BLACK_LIVERY, number: '11', baseSpeedKmh: 232, cornerSkill: 0.87, aggression: 0.5 },
+      { id: 'patrese', name: 'RICCARDO PATRESE', shortName: 'PATRESE', team: 'Alfa Romeo', helmetColor: '#EAB308', livery: FERRARI_LIVERY, number: '22', baseSpeedKmh: 229, cornerSkill: 0.85, aggression: 0.52 },
+      { id: 'tambay', name: 'PATRICK TAMBAY', shortName: 'TAMBAY', team: 'Renault', helmetColor: '#38BDF8', livery: LOTUS_CAMEL_LIVERY, number: '15', baseSpeedKmh: 225, cornerSkill: 0.84, aggression: 0.45 },
+    ]),
+    targetOvertakes: 5,
   },
   {
     id: 2,
@@ -152,7 +249,10 @@ export const STAGES: readonly StageConfig[] = [
     portalZ: -210,
     circuit: 'ESTORIL',
     year: 1985,
-    raceDistance: 1350,
+    lapLength: 1560,
+    totalLaps: 3,
+    playerGridPosition: 1,
+    raceDistance: 1560 * 3,
     mechanic: 'storm_speed',
     car: {
       id: 'lotus-97t',
@@ -167,27 +267,26 @@ export const STAGES: readonly StageConfig[] = [
     weather: {
       skyColor: '#0f172a',
       fogColor: '#0f172a',
-      fogNear: 28,
-      fogFar: 240,
+      fogNear: 32,
+      fogFar: 265,
       sunColor: '#64748b',
-      sunIntensity: 0.95,
-      ambientIntensity: 0.65,
+      sunIntensity: 1.0,
+      ambientIntensity: 0.7,
       rain: 0.9,
       wetAsphalt: true,
     },
-    opponents: [
-      {
-        id: 'alboreto-85',
-        name: 'MICHELE ALBORETO',
-        team: 'Ferrari',
-        livery: FERRARI_LIVERY,
-        initialOffsetZ: -65,
-        laneX: -2.0,
-        baseSpeedKmh: 238,
-        aggression: 0.55,
-      },
-    ],
-    targetOvertakes: 1,
+    opponents: buildGridOpponents('estoril85', 1, [
+      { id: 'prost', name: 'ALAIN PROST', shortName: 'PROST', team: 'McLaren', helmetColor: '#F8FAFC', livery: PROST_MCLAREN_LIVERY, number: '2', baseSpeedKmh: 256, cornerSkill: 0.95, aggression: 0.74 },
+      { id: 'alboreto', name: 'MICHELE ALBORETO', shortName: 'ALBORETO', team: 'Ferrari', helmetColor: '#FACC15', livery: FERRARI_LIVERY, number: '27', baseSpeedKmh: 254, cornerSkill: 0.92, aggression: 0.7 },
+      { id: 'angelis', name: 'ELIO DE ANGELIS', shortName: 'DE ANGELIS', team: 'Lotus', helmetColor: '#F8FAFC', livery: LOTUS_BLACK_LIVERY, number: '11', baseSpeedKmh: 250, cornerSkill: 0.91, aggression: 0.58 },
+      { id: 'mansell', name: 'NIGEL MANSELL', shortName: 'MANSELL', team: 'Williams', helmetColor: '#1D4ED8', livery: WILLIAMS_LIVERY, number: '5', baseSpeedKmh: 249, cornerSkill: 0.9, aggression: 0.78 },
+      { id: 'lauda', name: 'NIKI LAUDA', shortName: 'LAUDA', team: 'McLaren', helmetColor: '#DC2626', livery: PROST_MCLAREN_LIVERY, number: '1', baseSpeedKmh: 246, cornerSkill: 0.9, aggression: 0.55 },
+      { id: 'piquet', name: 'NELSON PIQUET', shortName: 'PIQUET', team: 'Brabham', helmetColor: '#FACC15', livery: BRABHAM_LIVERY, number: '7', baseSpeedKmh: 243, cornerSkill: 0.89, aggression: 0.62 },
+      { id: 'rosberg', name: 'KEKE ROSBERG', shortName: 'ROSBERG', team: 'Williams', helmetColor: '#F8FAFC', livery: WILLIAMS_LIVERY, number: '6', baseSpeedKmh: 241, cornerSkill: 0.88, aggression: 0.68 },
+      { id: 'berger', name: 'GERHARD BERGER', shortName: 'BERGER', team: 'Arrows', helmetColor: '#1D4ED8', livery: TYRRELL_LIVERY, number: '17', baseSpeedKmh: 236, cornerSkill: 0.86, aggression: 0.56 },
+      { id: 'patrese', name: 'RICCARDO PATRESE', shortName: 'PATRESE', team: 'Alfa Romeo', helmetColor: '#EAB308', livery: FERRARI_LIVERY, number: '22', baseSpeedKmh: 232, cornerSkill: 0.85, aggression: 0.5 },
+    ]),
+    targetOvertakes: 0,
   },
   {
     id: 3,
@@ -196,7 +295,10 @@ export const STAGES: readonly StageConfig[] = [
     portalZ: -330,
     circuit: 'SUZUKA',
     year: 1988,
-    raceDistance: 1450,
+    lapLength: 1680,
+    totalLaps: 3,
+    playerGridPosition: 4,
+    raceDistance: 1680 * 3,
     mechanic: 'stumble_recovery',
     car: {
       id: 'mclaren-mp4-4',
@@ -219,47 +321,17 @@ export const STAGES: readonly StageConfig[] = [
       rain: 0,
       wetAsphalt: false,
     },
-    opponents: [
-      {
-        id: 'pack-88-a',
-        name: 'GERHARD BERGER',
-        team: 'Ferrari',
-        livery: FERRARI_LIVERY,
-        initialOffsetZ: -40,
-        laneX: -3.0,
-        baseSpeedKmh: 226,
-        aggression: 0.35,
-      },
-      {
-        id: 'pack-88-b',
-        name: 'NELSON PIQUET',
-        team: 'Lotus',
-        livery: {
-          id: 'lotus-camel',
-          teamName: 'Lotus',
-          chassisName: '100T',
-          primary: '#EAB308',
-          secondary: '#1D4ED8',
-          accent: '#F8FAFC',
-          stripe: '#09090B',
-          numberText: '1',
-        },
-        initialOffsetZ: -75,
-        laneX: 2.8,
-        baseSpeedKmh: 238,
-        aggression: 0.45,
-      },
-      {
-        id: 'prost-88',
-        name: 'ALAIN PROST',
-        team: 'McLaren',
-        livery: PROST_MCLAREN_LIVERY,
-        initialOffsetZ: -115,
-        laneX: 0.6,
-        baseSpeedKmh: 248,
-        aggression: 0.7,
-      },
-    ],
+    opponents: buildGridOpponents('suzuka88', 4, [
+      { id: 'prost', name: 'ALAIN PROST', shortName: 'PROST', team: 'McLaren', helmetColor: '#F8FAFC', livery: PROST_MCLAREN_LIVERY, number: '11', baseSpeedKmh: 266, cornerSkill: 0.96, aggression: 0.75 },
+      { id: 'berger', name: 'GERHARD BERGER', shortName: 'BERGER', team: 'Ferrari', helmetColor: '#1D4ED8', livery: FERRARI_LIVERY, number: '28', baseSpeedKmh: 261, cornerSkill: 0.93, aggression: 0.68 },
+      { id: 'piquet', name: 'NELSON PIQUET', shortName: 'PIQUET', team: 'Lotus', helmetColor: '#FACC15', livery: LOTUS_CAMEL_LIVERY, number: '1', baseSpeedKmh: 258, cornerSkill: 0.92, aggression: 0.64 },
+      { id: 'alboreto', name: 'MICHELE ALBORETO', shortName: 'ALBORETO', team: 'Ferrari', helmetColor: '#FACC15', livery: FERRARI_LIVERY, number: '27', baseSpeedKmh: 255, cornerSkill: 0.91, aggression: 0.6 },
+      { id: 'mansell', name: 'NIGEL MANSELL', shortName: 'MANSELL', team: 'Williams', helmetColor: '#1D4ED8', livery: WILLIAMS_LIVERY, number: '5', baseSpeedKmh: 254, cornerSkill: 0.91, aggression: 0.78 },
+      { id: 'patrese', name: 'RICCARDO PATRESE', shortName: 'PATRESE', team: 'Williams', helmetColor: '#EAB308', livery: WILLIAMS_LIVERY, number: '6', baseSpeedKmh: 249, cornerSkill: 0.89, aggression: 0.56 },
+      { id: 'nannini', name: 'ALESSANDRO NANNINI', shortName: 'NANNINI', team: 'Benetton', helmetColor: '#F8FAFC', livery: BENETTON_LIVERY, number: '19', baseSpeedKmh: 246, cornerSkill: 0.88, aggression: 0.58 },
+      { id: 'boutsen', name: 'THIERRY BOUTSEN', shortName: 'BOUTSEN', team: 'Benetton', helmetColor: '#EF4444', livery: BENETTON_LIVERY, number: '20', baseSpeedKmh: 243, cornerSkill: 0.87, aggression: 0.52 },
+      { id: 'capelli', name: 'IVAN CAPELLI', shortName: 'CAPELLI', team: 'March', helmetColor: '#FACC15', livery: MARCH_LIVERY, number: '16', baseSpeedKmh: 239, cornerSkill: 0.86, aggression: 0.55 },
+    ]),
     targetOvertakes: 3,
   },
   {
@@ -269,7 +341,10 @@ export const STAGES: readonly StageConfig[] = [
     portalZ: -450,
     circuit: 'PHOENIX',
     year: 1990,
-    raceDistance: 1350,
+    lapLength: 1520,
+    totalLaps: 3,
+    playerGridPosition: 5,
+    raceDistance: 1520 * 3,
     mechanic: 'wheel_to_wheel',
     car: {
       id: 'mclaren-mp4-5b',
@@ -292,19 +367,18 @@ export const STAGES: readonly StageConfig[] = [
       rain: 0,
       wetAsphalt: false,
     },
-    opponents: [
-      {
-        id: 'alesi-90',
-        name: 'JEAN ALESI',
-        team: 'Tyrrell',
-        livery: TYRRELL_LIVERY,
-        initialOffsetZ: -45,
-        laneX: -1.8,
-        baseSpeedKmh: 254,
-        aggression: 0.92,
-      },
-    ],
-    targetOvertakes: 1,
+    opponents: buildGridOpponents('phoenix90', 5, [
+      { id: 'alesi', name: 'JEAN ALESI', shortName: 'ALESI', team: 'Tyrrell', helmetColor: '#F8FAFC', livery: TYRRELL_LIVERY, number: '4', baseSpeedKmh: 266, cornerSkill: 0.96, aggression: 0.9 },
+      { id: 'prost', name: 'ALAIN PROST', shortName: 'PROST', team: 'Ferrari', helmetColor: '#F8FAFC', livery: FERRARI_LIVERY, number: '1', baseSpeedKmh: 264, cornerSkill: 0.95, aggression: 0.72 },
+      { id: 'berger', name: 'GERHARD BERGER', shortName: 'BERGER', team: 'McLaren', helmetColor: '#1D4ED8', livery: PROST_MCLAREN_LIVERY, number: '28', baseSpeedKmh: 261, cornerSkill: 0.93, aggression: 0.68 },
+      { id: 'mansell', name: 'NIGEL MANSELL', shortName: 'MANSELL', team: 'Ferrari', helmetColor: '#1D4ED8', livery: FERRARI_LIVERY, number: '2', baseSpeedKmh: 258, cornerSkill: 0.92, aggression: 0.8 },
+      { id: 'piquet', name: 'NELSON PIQUET', shortName: 'PIQUET', team: 'Benetton', helmetColor: '#FACC15', livery: BENETTON_LIVERY, number: '20', baseSpeedKmh: 255, cornerSkill: 0.91, aggression: 0.66 },
+      { id: 'patrese', name: 'RICCARDO PATRESE', shortName: 'PATRESE', team: 'Williams', helmetColor: '#EAB308', livery: WILLIAMS_LIVERY, number: '6', baseSpeedKmh: 252, cornerSkill: 0.9, aggression: 0.6 },
+      { id: 'boutsen', name: 'THIERRY BOUTSEN', shortName: 'BOUTSEN', team: 'Williams', helmetColor: '#EF4444', livery: WILLIAMS_LIVERY, number: '5', baseSpeedKmh: 249, cornerSkill: 0.89, aggression: 0.56 },
+      { id: 'nannini', name: 'ALESSANDRO NANNINI', shortName: 'NANNINI', team: 'Benetton', helmetColor: '#F8FAFC', livery: BENETTON_LIVERY, number: '19', baseSpeedKmh: 245, cornerSkill: 0.88, aggression: 0.58 },
+      { id: 'capelli', name: 'IVAN CAPELLI', shortName: 'CAPELLI', team: 'Leyton House', helmetColor: '#FACC15', livery: MARCH_LIVERY, number: '16', baseSpeedKmh: 241, cornerSkill: 0.86, aggression: 0.52 },
+    ]),
+    targetOvertakes: 4,
   },
   {
     id: 5,
@@ -313,7 +387,10 @@ export const STAGES: readonly StageConfig[] = [
     portalZ: -570,
     circuit: 'INTERLAGOS',
     year: 1991,
-    raceDistance: 1450,
+    lapLength: 1640,
+    totalLaps: 3,
+    playerGridPosition: 3,
+    raceDistance: 1640 * 3,
     mechanic: 'sixth_gear_failure',
     car: {
       id: 'mclaren-mp4-6',
@@ -336,19 +413,18 @@ export const STAGES: readonly StageConfig[] = [
       rain: 0.2,
       wetAsphalt: true,
     },
-    opponents: [
-      {
-        id: 'patrese-91',
-        name: 'RICCARDO PATRESE',
-        team: 'Williams',
-        livery: WILLIAMS_LIVERY,
-        initialOffsetZ: -55,
-        laneX: 2.0,
-        baseSpeedKmh: 238,
-        aggression: 0.65,
-      },
-    ],
-    targetOvertakes: 1,
+    opponents: buildGridOpponents('interlagos91', 3, [
+      { id: 'mansell', name: 'NIGEL MANSELL', shortName: 'MANSELL', team: 'Williams', helmetColor: '#1D4ED8', livery: WILLIAMS_LIVERY, number: '5', baseSpeedKmh: 268, cornerSkill: 0.96, aggression: 0.85 },
+      { id: 'patrese', name: 'RICCARDO PATRESE', shortName: 'PATRESE', team: 'Williams', helmetColor: '#EAB308', livery: WILLIAMS_LIVERY, number: '6', baseSpeedKmh: 265, cornerSkill: 0.94, aggression: 0.72 },
+      { id: 'berger', name: 'GERHARD BERGER', shortName: 'BERGER', team: 'McLaren', helmetColor: '#1D4ED8', livery: PROST_MCLAREN_LIVERY, number: '2', baseSpeedKmh: 260, cornerSkill: 0.93, aggression: 0.65 },
+      { id: 'prost', name: 'ALAIN PROST', shortName: 'PROST', team: 'Ferrari', helmetColor: '#F8FAFC', livery: FERRARI_LIVERY, number: '27', baseSpeedKmh: 258, cornerSkill: 0.93, aggression: 0.68 },
+      { id: 'alesi', name: 'JEAN ALESI', shortName: 'ALESI', team: 'Ferrari', helmetColor: '#F8FAFC', livery: FERRARI_LIVERY, number: '28', baseSpeedKmh: 255, cornerSkill: 0.91, aggression: 0.74 },
+      { id: 'piquet', name: 'NELSON PIQUET', shortName: 'PIQUET', team: 'Benetton', helmetColor: '#FACC15', livery: BENETTON_LIVERY, number: '20', baseSpeedKmh: 252, cornerSkill: 0.9, aggression: 0.62 },
+      { id: 'moreno', name: 'ROBERTO MORENO', shortName: 'MORENO', team: 'Benetton', helmetColor: '#FACC15', livery: BENETTON_LIVERY, number: '19', baseSpeedKmh: 248, cornerSkill: 0.88, aggression: 0.56 },
+      { id: 'hakkinen', name: 'MIKA HÄKKINEN', shortName: 'HÄKKINEN', team: 'Lotus', helmetColor: '#38BDF8', livery: LOTUS_CAMEL_LIVERY, number: '11', baseSpeedKmh: 245, cornerSkill: 0.88, aggression: 0.6 },
+      { id: 'modena', name: 'STEFANO MODENA', shortName: 'MODENA', team: 'Tyrrell', helmetColor: '#F8FAFC', livery: TYRRELL_LIVERY, number: '4', baseSpeedKmh: 242, cornerSkill: 0.86, aggression: 0.54 },
+    ]),
+    targetOvertakes: 2,
   },
   {
     id: 6,
@@ -357,7 +433,10 @@ export const STAGES: readonly StageConfig[] = [
     portalZ: -690,
     circuit: 'MÔNACO',
     year: 1992,
-    raceDistance: 1350,
+    lapLength: 1480,
+    totalLaps: 3,
+    playerGridPosition: 1,
+    raceDistance: 1480 * 3,
     mechanic: 'defend_lead',
     car: {
       id: 'mclaren-mp4-7a',
@@ -380,18 +459,17 @@ export const STAGES: readonly StageConfig[] = [
       rain: 0,
       wetAsphalt: false,
     },
-    opponents: [
-      {
-        id: 'mansell-92',
-        name: 'NIGEL MANSELL',
-        team: 'Williams',
-        livery: WILLIAMS_LIVERY,
-        initialOffsetZ: 15,
-        laneX: 2.2,
-        baseSpeedKmh: 278,
-        aggression: 0.96,
-      },
-    ],
+    opponents: buildGridOpponents('monaco92', 1, [
+      { id: 'mansell', name: 'NIGEL MANSELL', shortName: 'MANSELL', team: 'Williams', helmetColor: '#1D4ED8', livery: WILLIAMS_LIVERY, number: '5', baseSpeedKmh: 274, cornerSkill: 0.98, aggression: 0.95 },
+      { id: 'patrese', name: 'RICCARDO PATRESE', shortName: 'PATRESE', team: 'Williams', helmetColor: '#EAB308', livery: WILLIAMS_LIVERY, number: '6', baseSpeedKmh: 266, cornerSkill: 0.94, aggression: 0.72 },
+      { id: 'schumacher', name: 'MICHAEL SCHUMACHER', shortName: 'SCHUMACHER', team: 'Benetton', helmetColor: '#EF4444', livery: BENETTON_LIVERY, number: '19', baseSpeedKmh: 264, cornerSkill: 0.94, aggression: 0.8 },
+      { id: 'berger', name: 'GERHARD BERGER', shortName: 'BERGER', team: 'McLaren', helmetColor: '#1D4ED8', livery: PROST_MCLAREN_LIVERY, number: '2', baseSpeedKmh: 261, cornerSkill: 0.92, aggression: 0.65 },
+      { id: 'alesi', name: 'JEAN ALESI', shortName: 'ALESI', team: 'Ferrari', helmetColor: '#F8FAFC', livery: FERRARI_LIVERY, number: '27', baseSpeedKmh: 256, cornerSkill: 0.91, aggression: 0.7 },
+      { id: 'brundle', name: 'MARTIN BRUNDLE', shortName: 'BRUNDLE', team: 'Benetton', helmetColor: '#38BDF8', livery: BENETTON_LIVERY, number: '20', baseSpeedKmh: 252, cornerSkill: 0.9, aggression: 0.6 },
+      { id: 'capelli', name: 'IVAN CAPELLI', shortName: 'CAPELLI', team: 'Ferrari', helmetColor: '#FACC15', livery: FERRARI_LIVERY, number: '28', baseSpeedKmh: 248, cornerSkill: 0.88, aggression: 0.55 },
+      { id: 'hakkinen', name: 'MIKA HÄKKINEN', shortName: 'HÄKKINEN', team: 'Lotus', helmetColor: '#38BDF8', livery: LOTUS_CAMEL_LIVERY, number: '11', baseSpeedKmh: 245, cornerSkill: 0.88, aggression: 0.62 },
+      { id: 'boutsen', name: 'THIERRY BOUTSEN', shortName: 'BOUTSEN', team: 'Ligier', helmetColor: '#EF4444', livery: LIGIER_LIVERY, number: '25', baseSpeedKmh: 241, cornerSkill: 0.86, aggression: 0.52 },
+    ]),
     targetOvertakes: 0,
   },
   {
@@ -401,7 +479,10 @@ export const STAGES: readonly StageConfig[] = [
     portalZ: -810,
     circuit: 'DONINGTON PARK',
     year: 1993,
-    raceDistance: 1600,
+    lapLength: 1760,
+    totalLaps: 3,
+    playerGridPosition: 5,
+    raceDistance: 1760 * 3,
     mechanic: 'four_overtakes',
     car: {
       id: 'mclaren-mp4-8',
@@ -417,56 +498,25 @@ export const STAGES: readonly StageConfig[] = [
       skyColor: '#1e293b',
       fogColor: '#1e293b',
       fogNear: 30,
-      fogFar: 245,
+      fogFar: 255,
       sunColor: '#94a3b8',
-      sunIntensity: 1.0,
-      ambientIntensity: 0.72,
+      sunIntensity: 1.05,
+      ambientIntensity: 0.74,
       rain: 0.85,
       wetAsphalt: true,
       lightning: true,
     },
-    opponents: [
-      {
-        id: 'wendlinger-93',
-        name: 'KARL WENDLINGER',
-        team: 'Sauber',
-        livery: SAUBER_LIVERY,
-        initialOffsetZ: -40,
-        laneX: -2.8,
-        baseSpeedKmh: 214,
-        aggression: 0.35,
-      },
-      {
-        id: 'schumacher-93',
-        name: 'MICHAEL SCHUMACHER',
-        team: 'Benetton',
-        livery: BENETTON_LIVERY,
-        initialOffsetZ: -90,
-        laneX: 2.6,
-        baseSpeedKmh: 224,
-        aggression: 0.6,
-      },
-      {
-        id: 'hill-93',
-        name: 'DAMON HILL',
-        team: 'Williams',
-        livery: { ...WILLIAMS_LIVERY, numberText: '0' },
-        initialOffsetZ: -140,
-        laneX: -2.2,
-        baseSpeedKmh: 234,
-        aggression: 0.65,
-      },
-      {
-        id: 'prost-93',
-        name: 'ALAIN PROST',
-        team: 'Williams',
-        livery: { ...WILLIAMS_LIVERY, numberText: '2' },
-        initialOffsetZ: -190,
-        laneX: 1.6,
-        baseSpeedKmh: 242,
-        aggression: 0.75,
-      },
-    ],
+    opponents: buildGridOpponents('donington93', 5, [
+      { id: 'prost', name: 'ALAIN PROST', shortName: 'PROST', team: 'Williams', helmetColor: '#F8FAFC', livery: WILLIAMS_LIVERY, number: '2', baseSpeedKmh: 266, cornerSkill: 0.95, aggression: 0.78 },
+      { id: 'hill', name: 'DAMON HILL', shortName: 'HILL', team: 'Williams', helmetColor: '#09090B', livery: WILLIAMS_LIVERY, number: '0', baseSpeedKmh: 262, cornerSkill: 0.93, aggression: 0.72 },
+      { id: 'schumacher', name: 'MICHAEL SCHUMACHER', shortName: 'SCHUMACHER', team: 'Benetton', helmetColor: '#EF4444', livery: BENETTON_LIVERY, number: '5', baseSpeedKmh: 260, cornerSkill: 0.94, aggression: 0.82 },
+      { id: 'wendlinger', name: 'KARL WENDLINGER', shortName: 'WENDLINGER', team: 'Sauber', helmetColor: '#FACC15', livery: SAUBER_LIVERY, number: '29', baseSpeedKmh: 254, cornerSkill: 0.9, aggression: 0.6 },
+      { id: 'berger', name: 'GERHARD BERGER', shortName: 'BERGER', team: 'Ferrari', helmetColor: '#1D4ED8', livery: FERRARI_LIVERY, number: '28', baseSpeedKmh: 251, cornerSkill: 0.9, aggression: 0.64 },
+      { id: 'alesi', name: 'JEAN ALESI', shortName: 'ALESI', team: 'Ferrari', helmetColor: '#F8FAFC', livery: FERRARI_LIVERY, number: '27', baseSpeedKmh: 248, cornerSkill: 0.89, aggression: 0.7 },
+      { id: 'patrese', name: 'RICCARDO PATRESE', shortName: 'PATRESE', team: 'Benetton', helmetColor: '#EAB308', livery: BENETTON_LIVERY, number: '6', baseSpeedKmh: 245, cornerSkill: 0.88, aggression: 0.56 },
+      { id: 'brundle', name: 'MARTIN BRUNDLE', shortName: 'BRUNDLE', team: 'Ligier', helmetColor: '#38BDF8', livery: LIGIER_LIVERY, number: '25', baseSpeedKmh: 241, cornerSkill: 0.87, aggression: 0.54 },
+      { id: 'lehto', name: 'JJ LEHTO', shortName: 'LEHTO', team: 'Sauber', helmetColor: '#E2E8F0', livery: SAUBER_LIVERY, number: '30', baseSpeedKmh: 237, cornerSkill: 0.85, aggression: 0.52 },
+    ]),
     targetOvertakes: 4,
   },
 ];

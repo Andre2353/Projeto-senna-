@@ -90,14 +90,35 @@ export interface StageWeather {
   lightning?: boolean;
 }
 
-export interface OpponentSpec {
+export type RacePhase = 'countdown' | 'racing' | 'finished';
+
+export interface RaceStandingEntry {
   id: string;
   name: string;
   team: string;
+  carNumber: string;
+  primaryColor: string;
+  secondaryColor: string;
+  isPlayer: boolean;
+  position: number;
+  lap: number;
+  totalDistance: number;
+  bestLapMs: number | null;
+  finishTimeMs: number | null;
+  finished: boolean;
+}
+
+export interface OpponentSpec {
+  id: string;
+  name: string;
+  shortName: string;
+  team: string;
+  helmetColor: string;
   livery: CarLivery;
   initialOffsetZ: number;
   laneX: number;
   baseSpeedKmh: number;
+  cornerSkill: number;
   aggression: number;
 }
 
@@ -108,6 +129,9 @@ export interface StageConfig {
   portalZ: number;
   circuit: string;
   year: number;
+  lapLength: number;
+  totalLaps: number;
+  playerGridPosition: number;
   raceDistance: number;
   mechanic: RaceMechanic;
   car: CarLivery;
@@ -149,6 +173,8 @@ export interface RaceResultState {
   overtakesCompleted: number;
   overtakesRequired: number;
   elapsedSeconds: number;
+  bestLapMs: number | null;
+  standings: RaceStandingEntry[];
 }
 
 export interface TransitionBanner {
@@ -160,13 +186,28 @@ export interface TransitionBanner {
 export interface OpponentRuntimeState {
   id: string;
   name: string;
+  shortName: string;
+  team: string;
+  carNumber: string;
+  primaryColor: string;
+  secondaryColor: string;
+  lap: number;
   x: number;
+  laneOffsetX: number;
   z: number;
+  totalDistance: number;
+  visualZ: number;
+  visualX: number;
+  visualVisible: boolean;
   speed: number;
   heading: number;
   aiState: OpponentAIState;
   overtakenByPlayer: boolean;
   targetLaneX: number;
+  currentLapStartMs: number;
+  bestLapMs: number | null;
+  finished: boolean;
+  finishTimeMs: number | null;
 }
 
 export interface GameRuntime {
@@ -193,6 +234,17 @@ export interface GameRuntime {
   overtakesCompleted: number;
   raceElapsed: number;
   raceFinished: boolean;
+  racePhase: RacePhase;
+  countdownLights: number;
+  countdownGoFlashUntil: number;
+  playerLap: number;
+  playerTotalDistance: number;
+  playerRank: number;
+  lapStartMs: number;
+  currentLapMs: number;
+  bestLapMs: number | null;
+  lastLapMs: number | null;
+  finishTimeMs: number | null;
   shakeIntensity: number;
   surfaceKerb: boolean;
   handbrake: boolean;
